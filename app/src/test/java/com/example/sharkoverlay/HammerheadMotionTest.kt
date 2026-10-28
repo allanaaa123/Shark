@@ -12,15 +12,18 @@ class HammerheadMotionTest {
     }
 
     @Test fun tailSweepsStronglyWhileHammerHeadRemainsStable() {
-        val a = pose(PI / 2, 0f)
-        val b = pose(3 * PI / 2, 0f)
+        val samples = (0 until 24).map { pose(it * PI / 12, 0f) }
         val tail = offset(1, 6)
         val head = offset(23, 6)
-        assertTrue("rear sweep should be visible", abs(a[tail + 1] - b[tail + 1]) > 30f)
-        assertEquals(a[head], b[head], 0.0001f)
-        assertEquals(a[head + 1], b[head + 1], 0.0001f)
-        val loop = pose(PI / 2 + 2 * PI, 0f)
-        assertArrayEquals(a, loop, 0.0001f)
+        // The travelling wave has phase lag at the tail. Measure its full cycle,
+        // rather than assuming the tail extrema occur at whole-body quarter phases.
+        val sweep = samples.maxOf { it[tail + 1] } - samples.minOf { it[tail + 1] }
+        assertTrue("rear sweep should be visible", sweep > 30f)
+        for (sample in samples) {
+            assertEquals(samples[0][head], sample[head], 0.0001f)
+            assertEquals(samples[0][head + 1], sample[head + 1], 0.0001f)
+        }
+        assertArrayEquals(samples[0], pose(2 * PI, 0f), 0.0001f)
     }
 
     @Test fun dorsalTipLeansWithTurnRelativeToItsBodyBase() {
