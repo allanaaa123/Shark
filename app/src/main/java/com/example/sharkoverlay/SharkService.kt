@@ -212,7 +212,7 @@ class SharkService : Service() {
             sharks.add(Shark(
                 config = config,
                 scale = scale,
-                effects = SwimEffects().apply { setStrength(effectsStrength) },
+                effects = SwimEffects().apply { applyStrength(effectsStrength) },
                 navigator = SharkNavigator(
                     minX + random.nextFloat() * max(0f, screenW - 2f * minX),
                     minY + random.nextFloat() * max(0f, screenH - 2f * minY),

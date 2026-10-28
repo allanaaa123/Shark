@@ -49,7 +49,7 @@ class SharkPreviewView(context: Context) : View(context) {
 
         while (renderers.size < configs.size) renderers.add(SharkRenderer())
         while (renderers.size > configs.size) renderers.removeAt(renderers.lastIndex)
-        while (effects.size < configs.size) effects.add(SwimEffects().apply { setStrength(effectsStrength) })
+        while (effects.size < configs.size) effects.add(SwimEffects().apply { applyStrength(effectsStrength) })
         while (effects.size > configs.size) effects.removeAt(effects.lastIndex)
         effects.forEach { it.clear() }
         invalidate()
