@@ -1,0 +1,146 @@
+[
+  {
+    "sourceFrame": 28,
+    "sourceTimeSeconds": 1.08,
+    "center": [
+      332.24616410940627,
+      121.47164776517678
+    ],
+    "heading": 108.78904847486345
+  },
+  {
+    "sourceFrame": 29,
+    "sourceTimeSeconds": 1.12,
+    "center": [
+      327.42473023173534,
+      131.89651512471255
+    ],
+    "heading": 110.6622785390261
+  },
+  {
+    "sourceFrame": 30,
+    "sourceTimeSeconds": 1.16,
+    "center": [
+      322.116125579736,
+      142.62914734213342
+    ],
+    "heading": 112.33448393532038
+  },
+  {
+    "sourceFrame": 31,
+    "sourceTimeSeconds": 1.2,
+    "center": [
+      316.5544147843942,
+      153.63963039014374
+    ],
+    "heading": 117.92610122958413
+  },
+  {
+    "sourceFrame": 32,
+    "sourceTimeSeconds": 1.24,
+    "center": [
+      311.43911693687477,
+      166.51190065539842
+    ],
+    "heading": 110.23706800583312
+  },
+  {
+    "sourceFrame": 33,
+    "sourceTimeSeconds": 1.28,
+    "center": [
+      306.75471371734994,
+      176.30980799169694
+    ],
+    "heading": 109.83158463236191
+  },
+  {
+    "sourceFrame": 34,
+    "sourceTimeSeconds": 1.32,
+    "center": [
+      303.6774193548387,
+      187.87988328740477
+    ],
+    "heading": 110.89181370848512
+  },
+  {
+    "sourceFrame": 35,
+    "sourceTimeSeconds": 1.36,
+    "center": [
+      298.1638280616383,
+      198.9028386050284
+    ],
+    "heading": 114.53596781190448
+  },
+  {
+    "sourceFrame": 36,
+    "sourceTimeSeconds": 1.4,
+    "center": [
+      292.947897470263,
+      209.08812196347796
+    ],
+    "heading": 113.05571894945062
+  },
+  {
+    "sourceFrame": 37,
+    "sourceTimeSeconds": 1.44,
+    "center": [
+      286.0301533219762,
+      219.8482112436116
+    ],
+    "heading": 116.53046488992358
+  },
+  {
+    "sourceFrame": 38,
+    "sourceTimeSeconds": 1.48,
+    "center": [
+      280.34585709493456,
+      232.16068433411607
+    ],
+    "heading": 119.84695688182693
+  },
+  {
+    "sourceFrame": 39,
+    "sourceTimeSeconds": 1.52,
+    "center": [
+      277.5232819524727,
+      241.98506743737957
+    ],
+    "heading": 122.81277436187914
+  },
+  {
+    "sourceFrame": 40,
+    "sourceTimeSeconds": 1.56,
+    "center": [
+      272.8565620426086,
+      252.5373231419743
+    ],
+    "heading": 120.0647065825789
+  },
+  {
+    "sourceFrame": 41,
+    "sourceTimeSeconds": 1.6,
+    "center": [
+      268.260162601626,
+      265.7221425155428
+    ],
+    "heading": 112.8560645318908
+  },
+  {
+    "sourceFrame": 42,
+    "sourceTimeSeconds": 1.64,
+    "center": [
+      264.07142857142856,
+      278.1336248785228
+    ],
+    "heading": 113.62833850619072
+  },
+  {
+    "sourceFrame": 43,
+    "sourceTimeSeconds": 1.68,
+    "center": [
+      261.24040830693417,
+      288.7018655403027
+    ],
+    "heading": 111.80978344406239
+  }
+]

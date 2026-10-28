@@ -1,27 +1,28 @@
-# 蟑螂爬行動畫：完全俯視版
+# 真實蟑螂爬行影格：剪裁與去背預覽
 
-## 一般速度（24 FPS）
+![實拍去背版](real/real-crawl.gif)
 
-![完全俯視爬行](topdown/topdown-preview.gif)
+[直接播放實拍去背版](real/real-crawl.gif?raw=true)
 
-[直接開啟一般速度動畫](topdown/topdown-preview.gif?raw=true)
+## 原始畫面裁切對照
 
-## 慢放檢查腳步
+![保留原始背景的裁切對照](real/real-source-comparison.gif)
 
-![慢放檢查](topdown/topdown-slow.gif)
+[開啟裁切對照](real/real-source-comparison.gif?raw=true)
 
-[直接開啟慢放動畫](topdown/topdown-slow.gif?raw=true)
+- [透明 WebP，24 FPS](real/real-crawl.webp?raw=true)
+- [MP4，24 FPS](real/real-crawl.mp4?raw=true)
 
-## 影片與透明素材
+### 製作方式與限制
 
-- [向前行走 MP4](topdown/topdown-forward.mp4?raw=true)
-- [一般速度 MP4](topdown/topdown-crawl.mp4?raw=true)
-- [透明循環 WebP](topdown/topdown-crawl.webp?raw=true)
+直接從真實美洲大蠊影片取出連續影格，追蹤身體、轉成朝右、裁切並去背，沒有生成新的腿或動作。去背試版選用原片第 28–36 幀，9 幀循環 375ms，平均 24 FPS；MP4 同樣為 24 FPS。GIF 重複兩次循環以分配格式的 10ms 時間精度。原始裁切對照保留 25 FPS。
 
-新版為完全俯視、每秒 24 幀。以固定紋理肢段與關節運算重做，使用兩組交替三足支撐，包含著地向後推進與抬腳回收。預覽的地面點跟隨鏡頭移動，可用來檢查腳底是否滑動；另提供固定鏡頭的向前行走影片。
+來源影片本來就是 10 倍慢放的段落，輸出沒有冒稱真實原速。來源只有 432×748，蟑螂只佔畫面一小部分；目前是低解析度灰階動作試片，仍有模糊、去背軟邊、部分細觸鬚遺失與近似循環接縫。要做清晰彩色的最終素材，需要更好的近距離原片。
 
-動作參考：Mongeau et al. (2012), [Rapid Inversion: Running Animals and Robots Swing like a Pendulum under Ledges, Video S1](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0038003)。已檢視實拍影片分幀，採用起跑踏步部分作定性參考，不模擬翻越平台的動作。
+### 來源、作者與授權
 
-這仍是參考步態後建立的 2D 關節動畫，不是從實拍影片直接擷取的動作捕捉。模型設定步頻 4 Hz，支撐期比例 0.62；驗證每個時刻至少三足支撐、著地不滑動及腿節長度固定。這些數值是模型檢查，不代表擬真程度已經獲得實驗驗證。
+Mongeau J-M et al. (2012), *Rapid Inversion: Running Animals and Robots Swing like a Pendulum under Ledges*, PLOS ONE 7(6): e38003, Video S1.
 
-一般循環 48 幀／2 秒；慢放 96 幀／4 秒，兩者均為 24 FPS。渲染原始碼與驗證資料保存在 topdown 子目錄。前一版生成姿勢補幀動畫不作為新版預覽。
+- [原始論文與影片](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0038003)
+- [Wikimedia Commons 來源檔](https://commons.wikimedia.org/wiki/File:Periplaneta_americana_performing_a_high-speed_inversion_on_a_ramp_(top_view)_-_Journal.pone.0038003.s001.ogv)
+- 原影片依 [CC BY 2.5](https://creativecommons.org/licenses/by/2.5/) 使用；本預覽做了追蹤、旋轉、裁切、去背、邊緣處理、1.5 倍空間放大與 25 至 24 FPS 播放調整。原作者不代表認可此衍生版本。

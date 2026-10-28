@@ -1,0 +1,41 @@
+{
+  "method": "direct_real_video_frames",
+  "fps": 24,
+  "nativeSourceFps": 25,
+  "sourceFrameNumbers": [
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36
+  ],
+  "sourceSegment": "original clip already slowed 10x",
+  "uniqueFramesPerStride": 9,
+  "strideDurationMs": 375,
+  "sourceVideoSize": [
+    432,
+    748
+  ],
+  "outputSize": [
+    432,
+    432
+  ],
+  "changes": [
+    "tracking",
+    "whole-frame rotation to face right",
+    "cropping",
+    "background subtraction",
+    "1.5x spatial resize",
+    "25fps to 24fps playback"
+  ],
+  "noGeneratedPoses": true,
+  "noSyntheticLimbs": true,
+  "limitations": "low resolution grayscale source, soft alpha edges, approximate loop seam",
+  "attribution": "Mongeau et al. (2012), PLOS ONE 7(6):e38003, Video S1, via Wikimedia Commons",
+  "source": "https://commons.wikimedia.org/wiki/File:Periplaneta_americana_performing_a_high-speed_inversion_on_a_ramp_(top_view)_-_Journal.pone.0038003.s001.ogv",
+  "license": "https://creativecommons.org/licenses/by/2.5/"
+}
