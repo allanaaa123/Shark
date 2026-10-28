@@ -1,0 +1,30 @@
+name: Retrieve original cockroach reference frames
+on:
+  push:
+    branches: [codex/cockroach-crawl-preview]
+    paths: [.github/workflows/cockroach-real-frames.yml]
+permissions:
+  contents: read
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        part: [0, 1, 2]
+    steps:
+      - name: Retrieve open-licensed original film
+        env:
+          SOURCE_PART: ${{ matrix.part }}
+        run: |
+          curl --fail --location --retry 2 --max-time 60 'https://upload.wikimedia.org/wikipedia/commons/9/9a/Periplaneta_americana_performing_a_high-speed_inversion_on_a_ramp_%28top_view%29_-_Journal.pone.0038003.s001.ogv' -o reference.ogv
+          python - <<'PY'
+          import base64, os, hashlib
+          from pathlib import Path
+          data=Path("reference.ogv").read_bytes()
+          print("SOURCE_SHA1",hashlib.sha1(data).hexdigest())
+          part=int(os.environ["SOURCE_PART"])
+          print("SOURCE_PART",part)
+          print("SOURCE_BYTES_BEGIN")
+          print(base64.b64encode(data[part*400000:(part+1)*400000]).decode())
+          print("SOURCE_BYTES_END")
+          PY
