@@ -15,9 +15,12 @@ import android.util.Log
 import java.util.concurrent.Executors
 import org.json.JSONObject
 
-/** One process-wide immutable atlas set: approximately 26 MiB, even for ten sharks. */
+/** One process-wide immutable atlas set: approximately 32 MiB, even for ten sharks. */
 object SharkArt {
-    data class Clip(val bitmap: Bitmap, val frames: Int, val durationMs: Int, val frameSize: Int, val columns: Int)
+    data class Clip(
+        val bitmap: Bitmap?, val frames: Int, val durationMs: Int,
+        val frameSize: Int, val columns: Int, val meshFrames: List<Bitmap> = emptyList()
+    )
     private val executor = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
     private val observers = linkedSetOf<() -> Unit>()
@@ -50,13 +53,26 @@ object SharkArt {
                             val bitmap = assets.open(root + name + "_atlas.webp").use {
                                 BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inScaled = false })
                             } ?: error("Cannot decode ${species.id}/$name")
-                            speciesClips[motion] = Clip(bitmap, spec.getInt("frames"), spec.getInt("durationMs"), spec.getInt("frameSize"), spec.getInt("columns"))
+                            val frameCount = spec.getInt("frames")
+                            val frameSize = spec.getInt("frameSize")
+                            val columns = spec.getInt("columns")
+                            // BitmapMesh takes a whole bitmap. Split once, share tiles across
+                            // all pets, and release the source atlas to avoid doubling memory.
+                            val tiles = if (species == SharkSpecies.HAMMERHEAD) List(frameCount) { i ->
+                                Bitmap.createBitmap(bitmap, i % columns * frameSize, i / columns * frameSize, frameSize, frameSize)
+                            } else emptyList()
+                            speciesClips[motion] = Clip(if (tiles.isEmpty()) bitmap else null, frameCount,
+                                spec.getInt("durationMs"), frameSize, columns, tiles)
+                            if (tiles.isNotEmpty()) bitmap.recycle()
                         }
                     }
                     loaded.toMap()
                 } catch (error: Exception) {
                     Log.e("SharkArt", "Animation loading failed; using Canvas fallback", error)
-                    loaded.values.forEach { speciesClips -> speciesClips.values.forEach { it.bitmap.recycle() } }
+                    loaded.values.forEach { speciesClips -> speciesClips.values.forEach { clip ->
+                        clip.bitmap?.recycle()
+                        clip.meshFrames.forEach { it.recycle() }
+                    } }
                     null
                 }
             }
@@ -91,9 +107,17 @@ class SharkRenderer {
     private var currentFrame = 0
     private var blend = 1f
     private val add = PorterDuffXfermode(PorterDuff.Mode.ADD)
+    private val mesh = FloatArray(HammerheadMotion.VERTEX_FLOATS)
+    private var tailPhase = 0.0
+    private var turnBend = 0f
 
     fun update(dt: Float, config: SharkConfig, navigator: SharkNavigator) {
         timing.advance(dt, config.speed, navigator.speedMultiplier)
+        tailPhase = timing.swimTimeMs / 1008.0 * 2.0 * Math.PI
+        val targetBend = if (config.species == SharkSpecies.HAMMERHEAD)
+            (navigator.angularVelocity / 220f).coerceIn(-1f, 1f) else 0f
+        val maxBendChange = dt.coerceIn(0f, 0.08f) * 6f
+        turnBend += (targetBend - turnBend).coerceIn(-maxBendChange, maxBendChange)
         // The two approved concept clips are swim cycles, including during path turns.
         val motion = if (config.species == SharkSpecies.HAMMERHEAD) navigator.motion else SharkMotion.SWIM
         if (motion != currentMotion || config.species != currentSpecies) {
@@ -134,10 +158,18 @@ class SharkRenderer {
     }
 
     private fun drawFrame(canvas: Canvas, clip: SharkArt.Clip, frame: Int, opacity: Float) {
+        paint.alpha = (opacity * 255).toInt()
+        if (clip.meshFrames.isNotEmpty()) {
+            HammerheadMotion.fill(mesh, target.width() / 2f, tailPhase, turnBend)
+            canvas.drawBitmapMesh(clip.meshFrames[frame], HammerheadMotion.COLUMNS,
+                HammerheadMotion.ROWS, mesh, 0, null, 0, paint)
+            return
+        }
+        val atlas = clip.bitmap ?: return
         val x = frame % clip.columns * clip.frameSize
         val y = frame / clip.columns * clip.frameSize
         source.set(x, y, x + clip.frameSize, y + clip.frameSize)
         paint.alpha = (opacity * 255).toInt()
-        canvas.drawBitmap(clip.bitmap, source, target, paint)
+        canvas.drawBitmap(atlas, source, target, paint)
     }
 }

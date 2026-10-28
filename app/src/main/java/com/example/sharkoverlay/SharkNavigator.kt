@@ -26,6 +26,8 @@ class SharkNavigator(
     /** The user's per-shark speed remains the baseline; this adds smooth variation. */
     var speedMultiplier = 0.85f + random.nextFloat() * 0.3f
         private set
+    var angularVelocity = 0f
+        private set
     val isReturning: Boolean get() = returning
     val motion: SharkMotion
         get() = if (mode == Mode.CRUISE) SharkMotion.SWIM
@@ -34,9 +36,11 @@ class SharkNavigator(
     var phase = random.nextFloat() * (2f * PI.toFloat())
         private set
 
-    fun update(dtSeconds: Float, width: Float, height: Float, speed: Float, radius: Float) {
+    fun update(dtSeconds: Float, width: Float, height: Float, speed: Float, radius: Float, species: SharkSpecies = SharkSpecies.HAMMERHEAD) {
         if (width <= 0f || height <= 0f) return
         val dt = dtSeconds.coerceIn(0f, 0.08f)
+        angularVelocity = 0f
+        val agile = species == SharkSpecies.HAMMERHEAD
         val r = radius.coerceAtLeast(1f)
         // The center may leave the screen; turning never clamps/teleports position.
         val margin = max(r * 1.2f, min(width, height) * 0.08f)
@@ -62,7 +66,7 @@ class SharkNavigator(
             speedTarget = 0.65f + random.nextFloat() * 0.8f
             speedSeconds = 2f + random.nextFloat() * 4f
         }
-        val desiredSpeed = speedTarget * if (mode == Mode.TURN) 0.85f else 1f
+        val desiredSpeed = speedTarget * if (mode == Mode.TURN && !agile) 0.85f else 1f
         val maxChange = 0.22f * dt
         speedMultiplier += (desiredSpeed - speedMultiplier).coerceIn(-maxChange, maxChange)
         val v = (speed.coerceAtLeast(1f) * speedMultiplier).coerceAtMost(min(width, height) * 1.5f)
@@ -73,8 +77,9 @@ class SharkNavigator(
             targetX = targetX.coerceIn(width * 0.25f, width * 0.75f)
             targetY = targetY.coerceIn(height * 0.25f, height * 0.75f)
             val difference = signedAngle(bearing(targetX, targetY) - angle)
-            val rate = 100f // A bounded U-turn, independent of screen density and speed.
+            val rate = if (agile) 220f else 100f // Preserve momentum, tighten hammerhead return arcs.
             val step = difference.coerceIn(-rate * dt, rate * dt)
+            angularVelocity = if (dt > 0f) step / dt else 0f
             if (abs(difference) > 3f) {
                 mode = Mode.TURN
                 turnSign = if (difference < 0f) -1f else 1f
@@ -92,9 +97,12 @@ class SharkNavigator(
                 }
             }
             if (mode == Mode.TURN) {
-                val turnRadius = max(r * 1.4f, v * 0.9f)
-                val rate = Math.toDegrees((v / turnRadius).toDouble()).toFloat().coerceIn(25f, 110f)
+                val turnRadius = if (agile) max(r * 0.65f, v * 0.26f) else max(r * 1.4f, v * 0.9f)
+                val rate = Math.toDegrees((v / turnRadius).toDouble()).toFloat().let {
+                    if (agile) it.coerceIn(90f, 240f) else it.coerceIn(25f, 110f)
+                }
                 val step = min(turnRemaining, rate * dt)
+                angularVelocity = if (dt > 0f) turnSign * step / dt else 0f
                 angle = (angle + turnSign * step + 360f) % 360f
                 turnRemaining -= step
                 progress = (1f - turnRemaining / turnTotal).coerceIn(0f, 1f)

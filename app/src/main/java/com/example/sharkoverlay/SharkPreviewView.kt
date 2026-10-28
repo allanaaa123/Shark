@@ -195,7 +195,8 @@ class SharkPreviewView(context: Context) : View(context) {
                 width = w,
                 height = h,
                 speed = speed,
-                radius = radius
+                radius = radius,
+                species = config.species
             )
 
             canvas.save()

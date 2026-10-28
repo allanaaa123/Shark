@@ -84,7 +84,8 @@ class SharkService : Service() {
                     width = screenW,
                     height = screenH,
                     speed = speed,
-                    radius = radius
+                    radius = radius,
+                    species = config.species
                 )
 
                 shark.params.x = (

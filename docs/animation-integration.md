@@ -127,3 +127,29 @@ and atlases are now the interpolated output. Regeneration additionally requires
 FFmpeg with RGBA-capable minterpolate. Device testing should cover
 mixed species, adding/canceling at the ten-pet limit, deleting identical configs,
 relaunching the Activity and restarting the Service.
+
+
+## Hammerhead articulation and agility
+
+Hammerheads add a continuous 24 x 12 BitmapMesh deformation on top of the
+original animation. Aft-weighted lateral motion increases caudal sweep while
+keeping the hammer-shaped head steady. Signed actual angular velocity drives
+a smoothly changing body curvature and local dorsal-fin shear, so the fin tip
+leans relative to its base. The extra tail wave runs during turns as well as
+cruise; turn-clip progress no longer makes the whole animal look paused.
+
+Only hammerheads remove the old 0.85 turn-speed factor. Course-change radii use
+max(0.65 * body radius, 0.26 * speed), with 90–240 degrees/second steering;
+offscreen return steering is 220 degrees/second instead of 100. Whale shark and
+orca keep their original navigation values. Speed target changes still use the
+existing acceleration limit; no instantaneous velocity boost is introduced.
+
+BitmapMesh consumes one complete frame bitmap. The loader slices hammerhead
+atlases once on its background executor, shares all frame bitmaps across pets,
+and releases the atlas after slicing. Persistent pixel storage stays at about
+31.5 MiB for all species, with transient extra decode/slicing memory and GPU
+copies excluded. Each renderer reuses one 650-float vertex buffer; no frame
+bitmaps are allocated while swimming. Unit tests check tail sweep, head stability,
+loop continuity, dorsal-tip response, mesh orientation and species-specific
+turning/velocity behavior. The final visual tuning and hardware rendering still
+need real-device validation.
