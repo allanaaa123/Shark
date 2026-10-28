@@ -10,6 +10,7 @@ import android.provider.Settings
 import android.graphics.Color
 import android.graphics.Typeface
 import android.view.View
+import android.text.InputType
 import android.widget.*
 import org.json.JSONArray
 import org.json.JSONObject
@@ -66,6 +67,11 @@ class MainActivity : Activity() {
 
         count = TextView(this).apply { textSize = 18f }
         root.addView(count)
+
+        root.addView(Button(this).apply {
+            text = "🎲 隨機新增 N 隻"
+            setOnClickListener { showRandomAddDialog() }
+        })
 
         list = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -217,6 +223,53 @@ class MainActivity : Activity() {
         refresh()
     }
 
+    private fun showRandomAddDialog() {
+        val remaining = RandomPetBatch.remainingSlots(sharks.size)
+        if (remaining == 0) {
+            Toast.makeText(this, "已達上限 ${SharkConfig.MAX_PETS} 隻", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(24), dp(8), dp(24), 0)
+        }
+        content.addView(TextView(this).apply {
+            text = "目前 ${sharks.size} 隻，還可新增 $remaining 隻。\n從 ${SharkSpecies.entries.size} 種海洋寵物隨機挑選，可重複；保留現有寵物。"
+            textSize = 14f
+        })
+        val number = EditText(this).apply {
+            inputType = InputType.TYPE_CLASS_NUMBER
+            setSingleLine(true)
+            hint = "新增數量：1～$remaining"
+            setText(minOf(5, remaining).toString())
+            selectAll()
+        }
+        content.addView(number)
+        val dialog = AlertDialog.Builder(this)
+            .setTitle("隨機新增寵物")
+            .setView(content)
+            .setPositiveButton("新增", null)
+            .setNegativeButton("取消", null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val requested = number.text.toString().trim().toIntOrNull()
+                val available = RandomPetBatch.remainingSlots(sharks.size)
+                if (requested == null || requested !in 1..available) {
+                    number.error = "請輸入 1～$available 的整數"
+                    return@setOnClickListener
+                }
+                val additions = RandomPetBatch.generate(requested, sharks.size)
+                sharks.addAll(additions)
+                save()
+                refresh()
+                dialog.dismiss()
+                Toast.makeText(this, "已隨機新增 $requested 隻", Toast.LENGTH_SHORT).show()
+            }
+        }
+        dialog.show()
+    }
+
     private fun save() {
         val arr = JSONArray()
         sharks.forEach {
@@ -327,6 +380,7 @@ class MainActivity : Activity() {
         preview.setSharks(sharks.toList())
     }
 }
+
 
 
 
