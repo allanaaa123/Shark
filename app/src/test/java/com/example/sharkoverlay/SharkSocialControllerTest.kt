@@ -22,6 +22,83 @@ class SharkSocialControllerTest {
         return social
     }
 
+    private class QuarterRandom : Random() {
+        override fun nextBits(bitCount: Int): Int = if(bitCount >= 2) 1 shl (bitCount-2) else 0
+    }
+
+    @Test fun characteristicEncountersAreMoreLikelyAndLastLonger() {
+        val social=SharkSocialController(QuarterRandom())
+        social.beginFrame(2)
+        repeat(200) {
+            social.capture(0,200f,200f,0f,100f,60f,false)
+            social.capture(1,380f,200f,0f,100f,60f,false)
+            social.update(1f/60)
+        }
+        // A .25 trigger draw was rejected by the old .12 probability.
+        // This interaction also outlasts the old 2–3.5 second parallel window.
+        assertEquals(SharkSocialController.Action.PARALLEL,social.action(0))
+    }
+
+    @Test fun socialCooldownIsShorterThanAvoidanceCooldown() {
+        val social=SharkSocialController(EncounterRandom())
+        social.beginFrame(2)
+        var seen=false
+        var endedAt=-1
+        var restartedAt=-1
+        repeat(480) { tick ->
+            social.capture(0,200f,200f,0f,100f,60f,false)
+            social.capture(1,380f,200f,0f,100f,60f,false)
+            social.update(1f/60)
+            if(social.action(0)==SharkSocialController.Action.PARALLEL) {
+                if(endedAt>=0 && restartedAt<0) restartedAt=tick
+                seen=true
+            } else if(seen && endedAt<0) endedAt=tick
+        }
+        assertTrue(endedAt>0 && restartedAt>endedAt)
+        assertTrue((restartedAt-endedAt)/60f < 1.8f)
+    }
+
+    @Test fun largeApproachingFishAreNoticedEarlierButSafePassesCanStillDraft() {
+        fun run(secondLength: Float, secondY: Float, heading: Float): SharkSocialController {
+            val social=SharkSocialController(EncounterRandom())
+            social.applyMode(SocialMode.OCEAN); social.beginFrame(2)
+            repeat(45) {
+                social.capture(0,200f,200f,0f,100f,100f,false)
+                social.capture(1,400f,secondY,heading,secondLength,100f,false)
+                social.update(1f/60)
+            }
+            return social
+        }
+        assertEquals(SharkSocialController.Action.IDLE,run(100f,200f,180f).action(0))
+        val big=run(200f,200f,180f)
+        assertEquals(SharkSocialController.Action.AVOID,big.action(0))
+        assertTrue(big.turnRate(0) > big.turnRate(1))
+        assertTrue(big.speedFactor(0) < big.speedFactor(1))
+        assertEquals(SharkSocialController.Action.DRAFT,run(200f,320f,0f).action(0))
+    }
+
+    @Test fun urgentBigFishCanInterruptAnExistingSocialPair() {
+        val social=SharkSocialController(EncounterRandom())
+        social.beginFrame(3)
+        repeat(45) {
+            social.capture(0,200f,200f,0f,100f,100f,false)
+            social.capture(1,380f,200f,0f,100f,100f,false)
+            social.capture(2,2000f,200f,180f,200f,100f,false)
+            social.update(1f/60)
+        }
+        assertEquals(SharkSocialController.Action.PARALLEL,social.action(0))
+        repeat(10) {
+            social.capture(0,200f,200f,0f,100f,100f,false)
+            social.capture(1,380f,200f,0f,100f,100f,false)
+            social.capture(2,280f,200f,180f,200f,100f,false)
+            social.update(1f/60)
+        }
+        assertEquals(SharkSocialController.Action.AVOID,social.action(0))
+        assertEquals(2,social.partnerIndex(0))
+        assertEquals(0,social.partnerIndex(2))
+        assertEquals(-1,social.partnerIndex(1))
+    }
+
     @Test fun modesHaveDifferentEncountersAndStableSavedIds() {
         for(mode in SocialMode.entries) assertEquals(mode,SocialMode.fromId(mode.id))
         assertEquals(SocialMode.NATURAL,SocialMode.fromId(null))
@@ -145,3 +222,4 @@ class SharkSocialControllerTest {
         }
     }
 }
+

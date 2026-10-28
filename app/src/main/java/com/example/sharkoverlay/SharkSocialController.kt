@@ -42,7 +42,7 @@ class SharkSocialController(private val random: Random = Random.Default) {
         remaining.fill(0f); elapsed.fill(0f)
         targetTurn.fill(0f); turns.fill(0f)
         targetSpeed.fill(1f); speeds.fill(1f)
-        for (i in cooldown.indices) cooldown[i] = 0.5f + random.nextFloat() * 1.5f
+        for (i in cooldown.indices) cooldown[i] = 0.3f + random.nextFloat() * 0.9f
         decisionClock = 0f
     }
 
@@ -91,13 +91,14 @@ class SharkSocialController(private val random: Random = Random.Default) {
 
     private fun release(i: Int) {
         val j = partner[i]
+        val avoiding = actions[i] == Action.AVOID
         partner[i] = -1; actions[i] = Action.IDLE
         targetTurn[i] = 0f; targetSpeed[i] = 1f
-        cooldown[i] = 3f + random.nextFloat() * 4f
+        cooldown[i] = if (avoiding) 3f + random.nextFloat()*2f else 1.2f + random.nextFloat()*1.6f
         if (j in 0 until count && partner[j] == i) {
             partner[j] = -1; actions[j] = Action.IDLE
             targetTurn[j] = 0f; targetSpeed[j] = 1f
-            cooldown[j] = 3f + random.nextFloat() * 4f
+            cooldown[j] = if (avoiding) 3f + random.nextFloat()*2f else 1.2f + random.nextFloat()*1.6f
         }
     }
 
@@ -127,25 +128,31 @@ class SharkSocialController(private val random: Random = Random.Default) {
             val j = partner[i]
             if (j >= 0 && (returning[j] || hypot(x[j]-x[i], y[j]-y[i]) > (length[i]+length[j])*4f)) release(i)
         }
-        // Pair free fish with a nearby approaching fish. A cooldown allows overlaps
-        // and prevents dense groups from continually dodging each other.
+        // Only genuine path conflicts take priority. A large approaching fish has
+        // an earlier notice range and may interrupt a social pair when necessary.
         for (i in 0 until count) {
-            if (returning[i] || partner[i] >= 0 || cooldown[i] > 0f) continue
-            var closest = -1
-            var score = Float.MAX_VALUE
+            if (returning[i] || actions[i] == Action.AVOID) continue
+            if (partner[i] < 0 && cooldown[i] > 0f) continue
+            var threat = -1
+            var score = 0f
             for (j in 0 until count) {
-                if (i == j || returning[j] || partner[j] >= 0 || cooldown[j] > 0f) continue
-                val dx = x[j]-x[i]; val dy = y[j]-y[i]
-                val dist = hypot(dx,dy)
-                val range = (length[i]+length[j])*0.60f
-                val rvx = hx[j]*speed[j]-hx[i]*speed[i]
-                val rvy = hy[j]*speed[j]-hy[i]*speed[i]
-                val closing = dx*rvx+dy*rvy < 0f
-                if ((dist < range && closing || dist < range*0.45f) && dist < score) {
-                    closest = j; score = dist
-                }
+                if (i == j || returning[j] || actions[j] == Action.AVOID) continue
+                if (partner[j] < 0 && cooldown[j] > 0f) continue
+                val risk = conflictScore(i,j)
+                if (risk <= score) continue
+                val ratio = max(length[i],length[j])/min(length[i],length[j])
+                // Ordinary near passes should not continually cancel a characteristic encounter.
+                if ((partner[i] >= 0 || partner[j] >= 0) && ratio < 1.5f && risk < 100f) continue
+                threat = j; score = risk
             }
-            if (closest >= 0) pair(i, closest, Action.AVOID, 0.9f + random.nextFloat()*0.4f)
+            if (threat >= 0) {
+                val j = threat
+                if (partner[i] >= 0) release(i)
+                if (partner[j] >= 0) release(j)
+                val ratio = max(length[i],length[j])/min(length[i],length[j])
+                pair(i,j,Action.AVOID,if(ratio>=1.5f) 1.2f+random.nextFloat()*0.3f
+                    else 0.8f+random.nextFloat()*0.35f)
+            }
         }
         // Other encounters are occasional and have one reciprocal partner each.
         for (i in 0 until count) {
@@ -163,20 +170,21 @@ class SharkSocialController(private val random: Random = Random.Default) {
                     (if (mode == SocialMode.PLAYFUL) ahead else aligned)) { nearest=j; best=dist }
             }
             val j = nearest
-            if (j < 0 || random.nextFloat() > 0.12f) continue
+            if (j < 0 || random.nextFloat() > 0.38f) continue
             when (mode) {
-                SocialMode.NATURAL -> pair(i,j,Action.PARALLEL,2f+random.nextFloat()*1.5f)
+                SocialMode.NATURAL -> pair(i,j,Action.PARALLEL,3.5f+random.nextFloat()*2.5f)
                 SocialMode.PLAYFUL -> {
                     val action = if(random.nextBoolean()) Action.FOLLOW else Action.CHASE
-                    val duration = 1.8f+random.nextFloat()*1.8f
+                    val duration = if(action == Action.CHASE) 2.8f+random.nextFloat()*1.5f
+                        else 3.5f+random.nextFloat()*2f
                     if(hx[i]*(x[j]-x[i])+hy[i]*(y[j]-y[i]) > 0f) pair(i,j,action,duration)
                     else pair(j,i,action,duration)
                 }
                 SocialMode.OCEAN -> {
                     if (min(length[i],length[j]) < max(length[i],length[j])*0.88f) {
-                        if (length[i] < length[j]) pair(i,j,Action.DRAFT,3f+random.nextFloat()*2f)
-                        else pair(j,i,Action.DRAFT,3f+random.nextFloat()*2f)
-                    } else pair(i,j,Action.SCHOOL,3f+random.nextFloat()*2f)
+                        if (length[i] < length[j]) pair(i,j,Action.DRAFT,4.5f+random.nextFloat()*2.5f)
+                        else pair(j,i,Action.DRAFT,4.5f+random.nextFloat()*2.5f)
+                    } else pair(i,j,Action.SCHOOL,4.5f+random.nextFloat()*2.5f)
                 }
                 SocialMode.OFF -> Unit
             }
@@ -186,11 +194,24 @@ class SharkSocialController(private val random: Random = Random.Default) {
             if (j < 0 || returning[i]) continue
             when (actions[i]) {
                 Action.AVOID -> {
-                    val small = length[i] < length[j]*0.9f
-                    val large = length[i] > length[j]*1.1f
-                    targetTurn[i] = side[i] * if(small) 32f else if(large) 16f else 25f
+                    val ratio = length[j]/length[i]
                     val forward = hx[i]*(x[j]-x[i])+hy[i]*(y[j]-y[i]) > 0f
-                    targetSpeed[i] = if(forward && !large) 0.86f else 0.98f
+                    val rate = when {
+                        ratio >= 2f -> 35f
+                        ratio >= 1.5f -> 32f
+                        ratio > 1.1f -> 27f
+                        ratio <= 0.5f -> 6f
+                        ratio <= 2f/3f -> 10f
+                        ratio < 0.9f -> 16f
+                        else -> 22f
+                    }
+                    targetTurn[i] = side[i]*rate
+                    targetSpeed[i] = when {
+                        forward && ratio >= 2f -> 0.85f
+                        forward && ratio >= 1.5f -> 0.88f
+                        forward && ratio > 0.9f -> 0.92f
+                        else -> 1f
+                    }
                 }
                 Action.PARALLEL -> {
                     val separation = (length[i]+length[j])*0.55f
@@ -218,6 +239,30 @@ class SharkSocialController(private val random: Random = Random.Default) {
             targetTurn[i] = targetTurn[i].coerceIn(-35f,35f)
             targetSpeed[i] = targetSpeed[i].coerceIn(0.85f,1.15f)
         }
+    }
+
+    private fun conflictScore(i: Int, j: Int): Float {
+        val dx=x[j]-x[i]; val dy=y[j]-y[i]
+        val distance=hypot(dx,dy)
+        val span=length[i]+length[j]
+        val ratio=max(length[i],length[j])/min(length[i],length[j])
+        val large=ratio>=1.5f
+        val notice=span*(if(ratio>=2f) 0.85f else if(large) 0.65f else 0.42f)
+        if(distance > notice) return 0f
+        // A very close overlap gets a short nudge, but separation is never enforced.
+        if(distance < span*0.15f) return 130f+(ratio-1f).coerceAtMost(3f)*25f
+        val rvx=hx[j]*speed[j]-hx[i]*speed[i]
+        val rvy=hy[j]*speed[j]-hy[i]*speed[i]
+        val dot=dx*rvx+dy*rvy
+        val relativeSpeed2=rvx*rvx+rvy*rvy
+        if(dot>=0f || relativeSpeed2<0.01f) return 0f
+        val horizon=if(ratio>=2f) 1.5f else if(large) 1.1f else 0.65f
+        val closestTime=(-dot/relativeSpeed2).coerceIn(0f,horizon)
+        val clearance=span*(if(large) 0.28f else 0.22f)
+        if(hypot(dx+rvx*closestTime,dy+rvy*closestTime) >= clearance) return 0f
+        val urgent=closestTime <= 0.45f || distance < span*0.22f
+        return (if(urgent) 105f else 35f) + (ratio-1f).coerceAtMost(3f)*30f +
+            (1f-distance/notice)*15f
     }
 
     private fun steerTo(i: Int, px: Float, py: Float, weight: Float) {
@@ -250,3 +295,4 @@ class SharkSocialController(private val random: Random = Random.Default) {
         matchSpeed(i,j,0.97f,1.04f)
     }
 }
+

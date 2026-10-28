@@ -245,9 +245,39 @@ class MainActivity : Activity() {
             selectAll()
         }
         content.addView(number)
+        val prefs = getSharedPreferences("shark", MODE_PRIVATE)
+        var variation = BatchVariation.fromId(prefs.getString(BatchVariation.PREFERENCE, null))
+        content.addView(TextView(this).apply {
+            text = "大小與速度"
+            textSize = 16f
+            setPadding(0, dp(12), 0, 0)
+        })
+        content.addView(RadioGroup(this).apply {
+            orientation = RadioGroup.VERTICAL
+            BatchVariation.entries.forEach { option ->
+                addView(RadioButton(this@MainActivity).apply {
+                    id = View.generateViewId()
+                    text = option.label
+                    textSize = 14f
+                    tag = option
+                    isChecked = option == variation
+                })
+            }
+            setOnCheckedChangeListener { group, checkedId ->
+                (group.findViewById<RadioButton>(checkedId)?.tag as? BatchVariation)?.let {
+                    variation = it
+                }
+            }
+        })
+        content.addView(TextView(this).apply {
+            text = "常態分佈以 100% 為中心，大小標準差 25%、速度 20%。各自抽樣，多數接近 100%，超出滑桿範圍會重抽。"
+            textSize = 12f
+            setPadding(0, dp(4), 0, dp(8))
+        })
+        val scroll = ScrollView(this).apply { addView(content) }
         val dialog = AlertDialog.Builder(this)
             .setTitle("隨機新增寵物")
-            .setView(content)
+            .setView(scroll)
             .setPositiveButton("新增", null)
             .setNegativeButton("取消", null)
             .create()
@@ -259,8 +289,9 @@ class MainActivity : Activity() {
                     number.error = "請輸入 1～$available 的整數"
                     return@setOnClickListener
                 }
-                val additions = RandomPetBatch.generate(requested, sharks.size)
+                val additions = RandomPetBatch.generate(requested, sharks.size, variation = variation)
                 sharks.addAll(additions)
+                prefs.edit().putString(BatchVariation.PREFERENCE, variation.id).apply()
                 save()
                 refresh()
                 dialog.dismiss()
@@ -380,6 +411,7 @@ class MainActivity : Activity() {
         preview.setSharks(sharks.toList())
     }
 }
+
 
 
 
