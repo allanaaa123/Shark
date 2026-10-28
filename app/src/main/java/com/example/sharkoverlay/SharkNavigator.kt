@@ -23,8 +23,27 @@ class SharkNavigator(
     private var speedTarget = 1f
     private var speedSeconds = 0f
 
+    private var startleRemaining = 0f
+    private var startleTurnRate = 0f
+    private var startleBoost = 1f
+    val isStartled: Boolean get() = startleRemaining > 0f || startleBoost > 1.001f
+
+    fun startle() {
+        startleRemaining = 2.2f
+        startleTurnRate = (45f + random.nextFloat()*40f) * if(random.nextBoolean()) 1f else -1f
+        // A new burst scatters headings gradually; do not teleport or override a return.
+        if (!returning) { mode = Mode.CRUISE; cruiseSeconds = 3f }
+    }
+
+    fun clearStartle(immediate: Boolean = false) {
+        startleRemaining = 0f
+        startleTurnRate = 0f
+        if (immediate) { startleBoost = 1f; speedMultiplier = baseSpeedMultiplier }
+    }
+
     /** The user's per-shark speed remains the baseline; this adds smooth variation. */
-    var speedMultiplier = 0.85f + random.nextFloat() * 0.3f
+    private var baseSpeedMultiplier = 0.85f + random.nextFloat() * 0.3f
+    var speedMultiplier = baseSpeedMultiplier
         private set
     var angularVelocity = 0f
         private set
@@ -41,6 +60,10 @@ class SharkNavigator(
         if (width <= 0f || height <= 0f) return
         val dt = dtSeconds.coerceIn(0f, 0.08f)
         angularVelocity = 0f
+        startleRemaining = max(0f,startleRemaining-dt)
+        val desiredBoost = 1f + 0.75f*(startleRemaining/1.3f).coerceIn(0f,1f)
+        val boostChange = (if(desiredBoost > startleBoost) 3.5f else 0.9f)*dt
+        startleBoost += (desiredBoost-startleBoost).coerceIn(-boostChange,boostChange)
         val agile = species == SharkSpecies.HAMMERHEAD
         val r = radius.coerceAtLeast(1f)
         // The center may leave the screen; turning never clamps/teleports position.
@@ -68,9 +91,10 @@ class SharkNavigator(
             speedSeconds = 2f + random.nextFloat() * 4f
         }
         val desiredSpeed = speedTarget * (if (mode == Mode.TURN && !agile) 0.85f else 1f) *
-            (if (returning) 1f else socialSpeedFactor.coerceIn(0.85f, 1.15f))
+            (if (returning || isStartled) 1f else socialSpeedFactor.coerceIn(0.85f, 1.15f))
         val maxChange = 0.22f * dt
-        speedMultiplier += (desiredSpeed - speedMultiplier).coerceIn(-maxChange, maxChange)
+        baseSpeedMultiplier += (desiredSpeed-baseSpeedMultiplier).coerceIn(-maxChange,maxChange)
+        speedMultiplier = baseSpeedMultiplier*startleBoost
         val v = (speed.coerceAtLeast(1f) * speedMultiplier).coerceAtMost(min(width, height) * 1.5f)
 
         if (returning) {
@@ -114,7 +138,12 @@ class SharkNavigator(
                 }
             }
         }
-        if (!returning && socialTurnRate != 0f) {
+        if (!returning && startleRemaining > 0f) {
+            val rate = startleTurnRate*(startleRemaining/2.2f).pow(2)
+            angle = (angle+rate*dt+360f)%360f
+            angularVelocity += rate
+        }
+        if (!returning && !isStartled && socialTurnRate != 0f) {
             val rate = socialTurnRate.coerceIn(-35f, 35f)
             angle = (angle + rate * dt + 360f) % 360f
             angularVelocity += rate
@@ -135,4 +164,5 @@ class SharkNavigator(
     private fun bearing(tx: Float, ty: Float): Float = Math.toDegrees(atan2((ty - y).toDouble(), (tx - x).toDouble())).toFloat()
     private fun signedAngle(degrees: Float): Float = ((degrees % 360f) + 540f) % 360f - 180f
 }
+
 

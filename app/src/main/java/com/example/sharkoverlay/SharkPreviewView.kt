@@ -21,6 +21,14 @@ class SharkPreviewView(context: Context) : View(context) {
         social.applyMode(value)
         invalidate()
     }
+    fun startle() {
+        social.reset()
+        swimmers.forEach { it.startle() }
+        invalidate()
+    }
+
+    fun stopStartle() { swimmers.forEach { it.clearStartle() } }
+
     private val artReady: () -> Unit = { invalidate() }
     private val random = Random.Default
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -207,7 +215,7 @@ class SharkPreviewView(context: Context) : View(context) {
         configs.forEachIndexed { index, config ->
             val nav = swimmers[index]
             social.capture(index, nav.x, nav.y, nav.angle, 110f * config.size / 100f,
-                35f * config.speed / 100f * nav.speedMultiplier, nav.isReturning)
+                35f * config.speed / 100f * nav.speedMultiplier, nav.isReturning || nav.isStartled)
         }
         social.update(dt)
         configs.forEachIndexed { index, config ->
@@ -265,6 +273,7 @@ class SharkPreviewView(context: Context) : View(context) {
 
     override fun onWindowVisibilityChanged(visibility: Int) {
         super.onWindowVisibilityChanged(visibility)
+        if (visibility != VISIBLE) swimmers.forEach { it.clearStartle(immediate = true) }
         lastTime = 0L
         if (visibility == VISIBLE) invalidate()
     }
@@ -275,6 +284,7 @@ class SharkPreviewView(context: Context) : View(context) {
         super.onDetachedFromWindow()
     }
 }
+
 
 
 

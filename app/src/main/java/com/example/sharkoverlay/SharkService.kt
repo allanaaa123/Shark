@@ -19,6 +19,21 @@ class SharkService : Service() {
     private val choreographer by lazy { Choreographer.getInstance() }
     private val random = Random.Default
     private val social = SharkSocialController()
+    private var shakeEnabled = false
+    private val shakeSensor by lazy {
+        ShakeSensor(this) {
+            if (running && shakeEnabled && getSystemService(PowerManager::class.java).isInteractive) {
+                social.reset()
+                sharks.forEach { it.navigator.startle() }
+            }
+        }
+    }
+
+    private fun updateShakeListening() {
+        if (running && shakeEnabled && getSystemService(PowerManager::class.java).isInteractive) {
+            shakeSensor.start()
+        } else shakeSensor.stop()
+    }
 
     private val sharks = mutableListOf<Shark>()
     private var running = false
@@ -26,7 +41,12 @@ class SharkService : Service() {
     private var overlayView: SharkView? = null
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == "$packageName.SOCIAL_CHANGED") {
+            if (intent?.action == "$packageName.SHAKE_CHANGED") {
+                val prefs = getSharedPreferences("shark", MODE_PRIVATE)
+                shakeEnabled = prefs.getBoolean(ShakeSensor.PREFERENCE, false)
+                if (!shakeEnabled) sharks.forEach { it.navigator.clearStartle() }
+                updateShakeListening()
+            } else if (intent?.action == "$packageName.SOCIAL_CHANGED") {
                 val prefs = getSharedPreferences("shark", MODE_PRIVATE)
                 social.applyMode(SocialMode.fromId(prefs.getString(SocialMode.PREFERENCE, null)))
             } else if (intent?.action == "$packageName.EFFECTS_CHANGED") {
@@ -35,12 +55,15 @@ class SharkService : Service() {
                 sharks.forEach { it.effects.applyStrength(strength) }
                 overlayView?.invalidate()
             } else if (intent?.action == Intent.ACTION_SCREEN_OFF) {
+                shakeSensor.stop()
+                sharks.forEach { it.navigator.clearStartle(immediate = true) }
                 choreographer.removeFrameCallback(loop)
                 lastTime = 0L
             } else if (intent?.action == Intent.ACTION_SCREEN_ON && running) {
                 choreographer.removeFrameCallback(loop)
                 lastTime = 0L
                 choreographer.postFrameCallback(loop)
+                updateShakeListening()
             }
         }
     }
@@ -51,6 +74,7 @@ class SharkService : Service() {
             addAction(Intent.ACTION_SCREEN_ON)
             addAction("$packageName.EFFECTS_CHANGED")
             addAction("$packageName.SOCIAL_CHANGED")
+            addAction("$packageName.SHAKE_CHANGED")
         }
         if (Build.VERSION.SDK_INT >= 33) registerReceiver(screenReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
         else registerReceiver(screenReceiver, filter)
@@ -79,7 +103,7 @@ class SharkService : Service() {
             sharks.forEachIndexed { index, shark ->
                 val nav = shark.navigator
                 social.capture(index, nav.x, nav.y, nav.angle, 110f * shark.scale,
-                    65f * metrics.density * shark.config.speed / 100f * nav.speedMultiplier, nav.isReturning)
+                    65f * metrics.density * shark.config.speed / 100f * nav.speedMultiplier, nav.isReturning || nav.isStartled)
             }
             social.update(dt)
             sharks.forEachIndexed { index, shark ->
@@ -193,6 +217,7 @@ class SharkService : Service() {
             MODE_PRIVATE
         )
 
+        shakeEnabled = prefs.getBoolean(ShakeSensor.PREFERENCE, false)
         val effectsStrength = EffectsStrength.fromId(prefs.getString(EffectsStrength.PREFERENCE, null))
         social.applyMode(SocialMode.fromId(prefs.getString(SocialMode.PREFERENCE, null)))
 
@@ -270,6 +295,7 @@ class SharkService : Service() {
 
         lastTime = 0L
         running = true
+        updateShakeListening()
         choreographer.removeFrameCallback(loop)
         choreographer.postFrameCallback(loop)
 
@@ -278,6 +304,7 @@ class SharkService : Service() {
 
     private fun clearSharks() {
         running = false
+        shakeSensor.stop()
         choreographer.removeFrameCallback(loop)
 
         overlayView?.let { view ->
@@ -335,6 +362,7 @@ private class SharkView(context: Context, private val sharks: List<Shark>) : Vie
         }
     }
 }
+
 
 
 

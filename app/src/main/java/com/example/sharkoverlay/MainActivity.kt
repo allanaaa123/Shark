@@ -20,6 +20,20 @@ class MainActivity : Activity() {
     private lateinit var preview: SharkPreviewView
     private lateinit var count: TextView
     private val sharks = mutableListOf<SharkConfig>()
+    private var shakeEnabled = false
+    private val shakeSensor by lazy {
+        ShakeSensor(this) { if (shakeEnabled && ::preview.isInitialized) preview.startle() }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (shakeEnabled) shakeSensor.start()
+    }
+
+    override fun onPause() {
+        shakeSensor.stop()
+        super.onPause()
+    }
 
     private fun dp(n: Int) = (n * resources.displayMetrics.density).toInt()
 
@@ -176,6 +190,30 @@ class MainActivity : Activity() {
                     sendBroadcast(Intent("$packageName.SOCIAL_CHANGED").setPackage(packageName))
                 }
             }
+        })
+
+        shakeEnabled = prefs.getBoolean(ShakeSensor.PREFERENCE, false) && shakeSensor.isAvailable
+        root.addView(Switch(this).apply {
+            text = "搖動驚嚇"
+            textSize = 18f
+            setPadding(0, dp(16), 0, dp(4))
+            isChecked = shakeEnabled
+            isEnabled = shakeSensor.isAvailable
+            setOnCheckedChangeListener { _, enabled ->
+                shakeEnabled = enabled
+                prefs.edit().putBoolean(ShakeSensor.PREFERENCE, enabled).apply()
+                if (enabled) shakeSensor.start() else {
+                    shakeSensor.stop()
+                    preview.stopStartle()
+                }
+                sendBroadcast(Intent("$packageName.SHAKE_CHANGED").setPackage(packageName))
+            }
+        })
+        root.addView(TextView(this).apply {
+            text = if (shakeSensor.isAvailable)
+                "開啟後搖動手機，魚會短暫加速散開，再恢復游速。觸發間隔至少 4 秒，熄屏暫停偵測。"
+                else "此裝置沒有加速度感測器，無法使用搖動驚嚇。"
+            textSize = 13f
         })
 
         root.addView(Button(this).apply {
@@ -411,6 +449,7 @@ class MainActivity : Activity() {
         preview.setSharks(sharks.toList())
     }
 }
+
 
 
 
