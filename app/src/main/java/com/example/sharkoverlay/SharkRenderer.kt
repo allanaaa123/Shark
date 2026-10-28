@@ -85,7 +85,7 @@ class SharkRenderer {
     private val add = PorterDuffXfermode(PorterDuff.Mode.ADD)
 
     fun update(dt: Float, config: SharkConfig, navigator: SharkNavigator) {
-        timing.advance(dt, config.speed)
+        timing.advance(dt, config.speed, navigator.speedMultiplier)
         val motion = navigator.motion
         if (motion != currentMotion) {
             previousMotion = currentMotion

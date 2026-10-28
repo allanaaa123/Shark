@@ -29,7 +29,7 @@ indexed renderer runs on newer Android versions. Native AnimatedImageDrawable
 precise navigation progress and baked-heading compensation require frame access.
 
 `SharkAnimationState` gives each shark independent swim phase and speed-dependent
-cadence (0.5 to 1.8 times). Turn clips play once according to navigation progress,
+cadence (0.35 to 2.4 times, incorporating actual speed variation). Turn clips play once according to navigation progress,
 not their embedded infinite loop. This stretches a 2.016-second turn to fit both
 small course corrections and large boundary turns. Heading and position continue
 to come exclusively from navigation. A 120 ms premultiplied crossfade on an
@@ -72,3 +72,21 @@ normalization. The generator rejects clipping instead of silently losing fins.
 - These supplied assets contain substantial whole-image rotation. Normalization
   prevents double rotation, but cannot create anatomical deformation absent from
   the source. Stronger body bending requires improved turn art.
+
+## Offscreen excursions and variable speed
+
+The fish center may pass the visible screen edge. Return steering starts only
+outside an additional margin (1.2 times navigation radius or 8% of the short
+screen dimension, capped at 35%). There is no hard position clamp. While outside,
+a stable target in the central 35–65% region and continuously recomputed bearing
+bring it back with a maximum 100 degrees/second turn. Random course changes do
+not interrupt return steering. Returning ends after reaching the visible inset.
+
+Each fish selects its own 0.65–1.45 speed factor every 2–6 seconds, approaches it
+at no more than 0.22 factor/second, and gently slows during turns. The saved speed
+setting remains the baseline. Both swim cadence and procedural fallback phase
+follow actual navigation speed. Tiny preview viewports cap travel speed relative
+to viewport size to avoid overshooting the entire view each tick.
+
+Whale shark and orca concept animations are review artifacts only. They are not
+included in Android assets, configuration choices or this implementation.

@@ -7,8 +7,8 @@ class SharkAnimationState(initialTimeMs: Double = kotlin.random.Random.nextDoubl
     var swimTimeMs = initialTimeMs
         private set
 
-    fun advance(dtSeconds: Float, speedPercent: Int) {
-        val cadence = (speedPercent / 100.0).coerceIn(0.5, 1.8)
+    fun advance(dtSeconds: Float, speedPercent: Int, speedMultiplier: Float = 1f) {
+        val cadence = (speedPercent / 100.0 * speedMultiplier).coerceIn(0.35, 2.4)
         swimTimeMs = (swimTimeMs + dtSeconds.coerceIn(0f, 0.08f) * 1000 * cadence) % 3_024.0
     }
 
