@@ -28,7 +28,7 @@ class MainActivity : Activity() {
 
         try {
             val saved = JSONArray(prefs.getString("sharks", "[]") ?: "[]")
-            for (i in 0 until minOf(10, saved.length())) {
+            for (i in 0 until SharkConfig.savedCount(saved.length())) {
                 val obj = saved.getJSONObject(i)
                 sharks.add(
                     SharkConfig.fromSaved(
@@ -59,7 +59,7 @@ class MainActivity : Activity() {
         })
 
         root.addView(TextView(this).apply {
-            text = "選擇雙髻鯊、鯨鯊或殺人鯨，每隻可獨立設定大小和游速"
+            text = "選擇 9 種海洋寵物，每隻可獨立設定大小和游速"
             textSize = 14f
             setPadding(0, dp(8), 0, dp(14))
         })
@@ -75,11 +75,11 @@ class MainActivity : Activity() {
         root.addView(Button(this).apply {
             text = "＋ 新增鯊魚／鯨魚"
             setOnClickListener {
-                if (sharks.size < 10) {
+                if (SharkConfig.canAdd(sharks.size)) {
                     AlertDialog.Builder(this@MainActivity)
                         .setTitle("選擇要新增的寵物")
                         .setItems(SharkSpecies.entries.map { it.displayName }.toTypedArray()) { _, which ->
-                            if (sharks.size < 10) {
+                            if (SharkConfig.canAdd(sharks.size)) {
                                 sharks.add(SharkConfig(species = SharkSpecies.entries[which]))
                                 save()
                                 refresh()
@@ -90,7 +90,7 @@ class MainActivity : Activity() {
                 } else {
                     Toast.makeText(
                         this@MainActivity,
-                        "最多 10 隻",
+                        "最多 ${SharkConfig.MAX_PETS} 隻",
                         Toast.LENGTH_SHORT
                     ).show()
                 }
@@ -202,7 +202,7 @@ class MainActivity : Activity() {
     }
 
     private fun refresh() {
-        count.text = "海洋寵物：${sharks.size} / 10 隻"
+        count.text = "海洋寵物：${sharks.size} / ${SharkConfig.MAX_PETS} 隻"
         list.removeAllViews()
 
         sharks.forEachIndexed { index, shark ->
@@ -295,5 +295,6 @@ class MainActivity : Activity() {
         preview.setSharks(sharks.toList())
     }
 }
+
 
 

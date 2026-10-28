@@ -195,6 +195,7 @@ class SharkPreviewView(context: Context) : View(context) {
 
         if (w <= 0f || h <= 0f) return
 
+        val detailFactor = SwimEffects.detailFor(configs.size)
         configs.forEachIndexed { index, config ->
             val nav = swimmers.getOrNull(index)
                 ?: return@forEachIndexed
@@ -214,7 +215,7 @@ class SharkPreviewView(context: Context) : View(context) {
 
             renderers[index].update(dt, config, nav)
             effects[index].update(dt, nav.x, nav.y, nav.angle, nav.angularVelocity, scale,
-                tailOffsetY = renderers[index].tailOffsetY(scale))
+                tailOffsetY = renderers[index].tailOffsetY(scale), detailFactor = detailFactor)
         }
 
         for (effect in effects) effectsPainter.draw(canvas, effect)
@@ -258,6 +259,7 @@ class SharkPreviewView(context: Context) : View(context) {
         super.onDetachedFromWindow()
     }
 }
+
 
 
 

@@ -69,6 +69,7 @@ class SharkService : Service() {
             val screenW = view.width.takeIf { it > 0 }?.toFloat() ?: metrics.widthPixels.toFloat()
             val screenH = view.height.takeIf { it > 0 }?.toFloat() ?: metrics.heightPixels.toFloat()
 
+            val detailFactor = SwimEffects.detailFor(sharks.size)
             sharks.forEach { shark ->
                 val nav = shark.navigator
                 val config = shark.config
@@ -90,7 +91,7 @@ class SharkService : Service() {
 
                 shark.renderer.update(dt, config, nav)
                 shark.effects.update(dt, nav.x, nav.y, nav.angle, nav.angularVelocity, shark.scale,
-                    tailOffsetY = shark.renderer.tailOffsetY(shark.scale))
+                    tailOffsetY = shark.renderer.tailOffsetY(shark.scale), detailFactor = detailFactor)
             }
             // One transparent surface; no per-pet WindowManager/input-region moves.
             view.invalidate()
@@ -185,7 +186,7 @@ class SharkService : Service() {
                 prefs.getString("sharks", "[]") ?: "[]"
             )
 
-            for (i in 0 until min(10, array.length())) {
+            for (i in 0 until SharkConfig.savedCount(array.length())) {
                 val obj = array.getJSONObject(i)
 
                 configs.add(
@@ -318,6 +319,7 @@ private class SharkView(context: Context, private val sharks: List<Shark>) : Vie
         }
     }
 }
+
 
 
 

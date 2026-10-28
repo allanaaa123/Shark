@@ -33,7 +33,7 @@ class TurnPoseTest {
     @Test fun bentSwimmingMeshKeepsHeadSteadyAndDoesNotFold() {
         val mesh = FloatArray(HammerheadMotion.VERTEX_FLOATS)
         val stride = (SpeciesSwimMotion.COLUMNS + 1) * 2
-        for (species in listOf(SharkSpecies.WHALE_SHARK, SharkSpecies.ORCA)) {
+        for (species in SharkSpecies.entries.filter { it != SharkSpecies.HAMMERHEAD }) {
             for (bend in listOf(-1f, 0f, 1f)) {
                 for (tick in 0..24) {
                     SpeciesSwimMotion.fill(mesh, 96f, tick * 2 * PI / 24, species, bend, bend)
@@ -54,3 +54,4 @@ class TurnPoseTest {
         }
     }
 }
+

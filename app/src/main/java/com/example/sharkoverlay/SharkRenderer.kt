@@ -64,7 +64,7 @@ object SharkArt {
                             }
                             speciesClips[motion] = Clip(null, tileCount,
                                 spec.getInt("durationMs"), frameSize, columns, tiles)
-                            if (tiles.isNotEmpty()) bitmap.recycle()
+                            if (tiles.none { it === bitmap }) bitmap.recycle()
                         }
                     }
                     loaded.toMap()
@@ -138,7 +138,7 @@ class SharkRenderer {
 
     fun tailOffsetY(scale: Float): Float {
         if (currentSpecies == SharkSpecies.HAMMERHEAD) return 0f
-        val cycleMs = if (currentSpecies == SharkSpecies.WHALE_SHARK) 1600.0 else 1400.0
+        val cycleMs = currentSpecies.swimCycleMs
         return SpeciesSwimMotion.tailY(110f * scale * 192f / 170f / 2f,
             timing.swimTimeMs / cycleMs * 2.0 * Math.PI, currentSpecies,
             turnPose.bodyBend, turnPose.tailBend)
@@ -174,7 +174,7 @@ class SharkRenderer {
             if (species == SharkSpecies.HAMMERHEAD) {
                 HammerheadMotion.fill(mesh, target.width() / 2f, tailPhase, turnBend)
             } else {
-                val cycleMs = if (species == SharkSpecies.WHALE_SHARK) 1600.0 else 1400.0
+                val cycleMs = species.swimCycleMs
                 SpeciesSwimMotion.fill(mesh, target.width() / 2f,
                     timing.swimTimeMs / cycleMs * 2.0 * Math.PI, species,
                     turnPose.bodyBend, turnPose.tailBend)
@@ -191,5 +191,6 @@ class SharkRenderer {
         canvas.drawBitmap(atlas, source, target, paint)
     }
 }
+
 
 

@@ -1,0 +1,12 @@
+{
+  "swim": {
+    "frames": 1,
+    "durationMs": 2100,
+    "frameDurationsMs": [
+      2100
+    ],
+    "frameSize": 256,
+    "columns": 1,
+    "animation": "continuous_mesh"
+  }
+}

@@ -58,10 +58,12 @@ class SwimEffects(private val random: Random = Random.Default) {
     }
 
     fun update(dtSeconds: Float, x: Float, y: Float, angle: Float,
-               angularVelocity: Float, bodyScale: Float, emitting: Boolean = true, tailOffsetY: Float = 0f) {
+               angularVelocity: Float, bodyScale: Float, emitting: Boolean = true, tailOffsetY: Float = 0f, detailFactor: Float = 1f) {
         val dt = dtSeconds.coerceIn(0f, 0.08f)
         if (dt <= 0f || strength == EffectsStrength.OFF) return
         val scale = bodyScale.coerceAtLeast(0.01f)
+        val detail = detailFactor.coerceIn(0.4f, 1f)
+        val trailStep = TRAIL_STEP / detail
         for (p in trails) p.age = (p.age + dt).coerceAtMost(2f)
         for (p in bubbles) {
             p.age = (p.age + dt).coerceAtMost(2f)
@@ -84,8 +86,8 @@ class SwimEffects(private val random: Random = Random.Default) {
         if (emitting) {
             // Sample the moving tail at a fixed rate, independently of display FPS.
             trailClock += dt
-            while (trailClock >= TRAIL_STEP) {
-                trailClock -= TRAIL_STEP
+            while (trailClock >= trailStep) {
+                trailClock -= trailStep
                 val f = (1f - trailClock / dt).coerceIn(0f, 1f)
                 val deltaAngle = ((angle - lastAngle + 540f) % 360f) - 180f
                 val a = Math.toRadians((lastAngle + deltaAngle * f).toDouble())
@@ -100,7 +102,7 @@ class SwimEffects(private val random: Random = Random.Default) {
             val turning = abs(angularVelocity) >= 12f
             // Turn bursts are deliberately much richer than the gentle straight swim.
             val bubbleRate = if (turning) 12f + 4f * (abs(angularVelocity) / 180f).coerceAtMost(1f) else 1.8f
-            bubbleClock += dt * bubbleRate * strength.density
+            bubbleClock += dt * bubbleRate * strength.density * detail
             while (bubbleClock >= 1f) {
                 bubbleClock -= 1f
                 val p = bubbles[nextBubble]
@@ -114,7 +116,7 @@ class SwimEffects(private val random: Random = Random.Default) {
                 emittedBubbles++
             }
             if (turning) {
-                rippleClock += dt * strength.density
+                rippleClock += dt * strength.density * detail
                 if (rippleClock >= 0.24f) {
                     rippleClock %= 0.24f
                     val p = ripples[nextRipple]
@@ -133,10 +135,13 @@ class SwimEffects(private val random: Random = Random.Default) {
     }
 
     companion object {
+        fun detailFor(petCount: Int): Float = sqrt(10f / petCount.coerceAtLeast(1)).coerceIn(0.4f, 1f)
+
         const val TRAIL_LIFE = 1.05f
         const val BUBBLE_LIFE = 1.35f
         const val RIPPLE_LIFE = 0.85f
         private const val TRAIL_STEP = 1f / 30f
     }
 }
+
 
