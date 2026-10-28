@@ -1,0 +1,10 @@
+手機操作（使用 Chrome 建議開啟「電腦版網站」）
+1. 下載 ZIP 並在手機「檔案」App 解壓縮。
+2. 開啟 github.com，登入或建立帳號，建立新 Repository，名稱 SharkOverlay，選 Public 或 Private，不要勾選初始化 README。
+3. 在新 Repository 點「uploading an existing file」（或 Add file → Upload files）。
+4. 上傳解壓後 SharkOverlay 資料夾裡的檔案，務必保留路徑：app/src/...、.github/workflows/build-apk.yml、build.gradle.kts、settings.gradle.kts、gradle.properties 等。Android 手機瀏覽器可能無法直接上傳整個資料夾；如果只能選單一檔案，可改用 github.dev 網頁編輯器的檔案總管上傳資料夾，或用電腦協助第一次上傳。
+5. 上傳並 Commit 後，點 Repository → Actions → Build Android APK → Run workflow（若 push 已自動啟動可直接點執行紀錄）。
+6. 等待綠色勾勾，打開該次執行頁面，於 Artifacts 下載 SharkOverlay-debug-apk.zip。
+7. 解壓縮下載的 Artifacts ZIP，點 app-debug.apk 安裝；手機若提示不允許此來源安裝，請到設定允許本次來源。
+8. 打開「像素鯊魚」App，允許顯示在其他應用程式上層，回 App 按「啟動 / 更新鯊魚」。
+提醒：目前是尚未經真機測試的原型。Android 不同廠牌對懸浮視窗及背景服務的限制可能不同。
