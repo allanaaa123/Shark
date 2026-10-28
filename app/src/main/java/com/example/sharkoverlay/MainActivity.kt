@@ -1,3 +1,4 @@
+
 package com.example.sharkoverlay
 
 import android.app.Activity
@@ -5,38 +6,250 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
+import android.graphics.Color
+import android.graphics.Typeface
+import android.view.View
 import android.widget.*
+import org.json.JSONArray
+import org.json.JSONObject
 
 class MainActivity : Activity() {
+    private lateinit var list: LinearLayout
+    private lateinit var preview: SharkPreviewView
+    private lateinit var count: TextView
+    private val sharks = mutableListOf<SharkConfig>()
+
+    private fun dp(n: Int) = (n * resources.displayMetrics.density).toInt()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val prefs = getSharedPreferences("shark", MODE_PRIVATE)
-        val layout = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(40, 55, 40, 20) }
-        layout.addView(TextView(this).apply { text = "黑白像素桌面鯊魚"; textSize = 25f })
-        val species = Spinner(this)
-        species.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, listOf("一般鯊魚", "錘頭鯊"))
-        species.setSelection(prefs.getInt("species", 0))
-        layout.addView(species)
-        val perspective = Spinner(this)
-        perspective.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, listOf("俯視", "側視偏俯視"))
-        perspective.setSelection(prefs.getInt("perspective", 1))
-        layout.addView(perspective)
-        layout.addView(TextView(this).apply { text = "鯊魚大小" })
-        val size = SeekBar(this).apply { max = 160; progress = prefs.getInt("size", 90) - 40 }
-        layout.addView(size)
-        layout.addView(TextView(this).apply { text = "游泳速度" })
-        val speed = SeekBar(this).apply { max = 100; progress = prefs.getInt("speed", 45) }
-        layout.addView(speed)
-        fun save() { prefs.edit().putInt("species", species.selectedItemPosition).putInt("perspective", perspective.selectedItemPosition).putInt("size", size.progress + 40).putInt("speed", speed.progress).apply() }
-        layout.addView(Button(this).apply { text = "啟動 / 更新鯊魚"; setOnClickListener {
-            save()
-            if (!Settings.canDrawOverlays(this@MainActivity)) {
-                startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
-                Toast.makeText(this@MainActivity, "請允許顯示在其他應用程式上層，返回後再按啟動", Toast.LENGTH_LONG).show()
-            } else startForegroundService(Intent(this@MainActivity, SharkService::class.java).setAction("START"))
-        } })
-        layout.addView(Button(this).apply { text = "停止鯊魚"; setOnClickListener { startService(Intent(this@MainActivity, SharkService::class.java).setAction("STOP")) } })
-        layout.addView(TextView(this).apply { text = "鯊魚會在其他 App 上層游動。透明區域可正常操作；觸摸鯊魚所在的小視窗可能攔截觸控。可從通知停止。" })
-        setContentView(layout)
+
+        try {
+            val saved = JSONArray(prefs.getString("sharks", "[]") ?: "[]")
+            for (i in 0 until saved.length()) {
+                val obj = saved.getJSONObject(i)
+                sharks.add(
+                    SharkConfig(
+                        obj.optInt("size", 100).coerceIn(30, 200),
+                        obj.optInt("speed", 100).coerceIn(20, 200)
+                    )
+                )
+            }
+        } catch (_: Exception) {}
+
+        if (!prefs.contains("sharks")) {
+            sharks.add(SharkConfig(100, 100))
+        }
+
+        val scroll = ScrollView(this)
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(28), dp(20), dp(24))
+        }
+        scroll.addView(root)
+
+        root.addView(TextView(this).apply {
+            text = "桌面雙髻鯊"
+            textSize = 27f
+            setTextColor(Color.BLACK)
+            setTypeface(null, Typeface.BOLD)
+        })
+
+        root.addView(TextView(this).apply {
+            text = "每隻鯊魚可以獨立設定大小和游速"
+            textSize = 14f
+            setPadding(0, dp(8), 0, dp(14))
+        })
+
+        count = TextView(this).apply { textSize = 18f }
+        root.addView(count)
+
+        list = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+        root.addView(list)
+
+        root.addView(Button(this).apply {
+            text = "＋ 新增雙髻鯊"
+            setOnClickListener {
+                if (sharks.size < 10) {
+                    sharks.add(SharkConfig(100, 100))
+                    save()
+                    refresh()
+                } else {
+                    Toast.makeText(
+                        this@MainActivity,
+                        "最多 10 隻",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        })
+
+        root.addView(TextView(this).apply {
+            text = "即時預覽"
+            textSize = 19f
+            setPadding(0, dp(20), 0, dp(8))
+        })
+
+        preview = SharkPreviewView(this)
+        root.addView(
+            preview,
+            LinearLayout.LayoutParams(-1, dp(190))
+        )
+
+        root.addView(Button(this).apply {
+            text = "啟動 / 更新桌面鯊魚"
+            setOnClickListener {
+                save()
+                if (!Settings.canDrawOverlays(this@MainActivity)) {
+                    startActivity(
+                        Intent(
+                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                            Uri.parse("package:$packageName")
+                        )
+                    )
+                    Toast.makeText(
+                        this@MainActivity,
+                        "請允許顯示在其他應用程式上層，返回後再啟動",
+                        Toast.LENGTH_LONG
+                    ).show()
+                } else {
+                    startForegroundService(
+                        Intent(this@MainActivity, SharkService::class.java)
+                            .setAction("START")
+                    )
+                }
+            }
+        })
+
+        root.addView(Button(this).apply {
+            text = "停止所有鯊魚"
+            setOnClickListener {
+                startService(
+                    Intent(this@MainActivity, SharkService::class.java)
+                        .setAction("STOP")
+                )
+            }
+        })
+
+        root.addView(TextView(this).apply {
+            text = "鯊魚會在其他 App 上方游動，不會阻擋觸控。"
+            textSize = 12f
+            setPadding(0, dp(10), 0, 0)
+        })
+
+        setContentView(scroll)
+        refresh()
+    }
+
+    private fun save() {
+        val arr = JSONArray()
+        sharks.forEach {
+            arr.put(
+                JSONObject()
+                    .put("size", it.size)
+                    .put("speed", it.speed)
+            )
+        }
+        getSharedPreferences("shark", MODE_PRIVATE)
+            .edit()
+            .putString("sharks", arr.toString())
+            .apply()
+    }
+
+    private fun refresh() {
+        count.text = "雙髻鯊：${sharks.size} 隻"
+        list.removeAllViews()
+
+        sharks.forEachIndexed { index, shark ->
+            val box = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(10), dp(8), dp(10), dp(10))
+                setBackgroundColor(Color.rgb(238, 238, 238))
+            }
+
+            val heading = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = android.view.Gravity.CENTER_VERTICAL
+            }
+
+            heading.addView(
+                TextView(this).apply {
+                    text = "雙髻鯊 ${index + 1}"
+                    textSize = 18f
+                    setTypeface(null, Typeface.BOLD)
+                },
+                LinearLayout.LayoutParams(0, -2, 1f)
+            )
+
+            heading.addView(Button(this).apply {
+                text = "刪除"
+                setOnClickListener {
+                    sharks.remove(shark)
+                    save()
+                    refresh()
+                }
+            })
+            box.addView(heading)
+
+            fun addSlider(
+                title: String,
+                min: Int,
+                max: Int,
+                initial: Int,
+                onValue: (Int) -> Unit
+            ) {
+                val label = TextView(this).apply {
+                    text = "$title：$initial%"
+                }
+                box.addView(label)
+
+                box.addView(SeekBar(this).apply {
+                    this.max = max - min
+                    progress = initial - min
+                    setOnSeekBarChangeListener(
+                        object : SeekBar.OnSeekBarChangeListener {
+                            override fun onProgressChanged(
+                                seekBar: SeekBar?,
+                                progress: Int,
+                                fromUser: Boolean
+                            ) {
+                                val value = min + progress
+                                label.text = "$title：$value%"
+                                onValue(value)
+                                save()
+                                preview.setSharks(sharks.toList())
+                            }
+
+                            override fun onStartTrackingTouch(
+                                seekBar: SeekBar?
+                            ) {}
+
+                            override fun onStopTrackingTouch(
+                                seekBar: SeekBar?
+                            ) {}
+                        }
+                    )
+                })
+            }
+
+            addSlider("大小", 30, 200, shark.size) {
+                shark.size = it
+            }
+            addSlider("游速", 20, 200, shark.speed) {
+                shark.speed = it
+            }
+
+            list.addView(
+                box,
+                LinearLayout.LayoutParams(-1, -2).apply {
+                    bottomMargin = dp(10)
+                }
+            )
+        }
+
+        preview.setSharks(sharks.toList())
     }
 }
