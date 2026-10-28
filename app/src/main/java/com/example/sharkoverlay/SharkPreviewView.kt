@@ -13,6 +13,8 @@ class SharkPreviewView(context: Context) : View(context) {
     private val configs = mutableListOf<SharkConfig>()
     private val swimmers = mutableListOf<SharkNavigator>()
     private val renderers = mutableListOf<SharkRenderer>()
+    private val effects = mutableListOf<SwimEffects>()
+    private val effectsPainter = SwimEffectsPainter()
     private val artReady: () -> Unit = { invalidate() }
     private val random = Random.Default
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -39,6 +41,9 @@ class SharkPreviewView(context: Context) : View(context) {
 
         while (renderers.size < configs.size) renderers.add(SharkRenderer())
         while (renderers.size > configs.size) renderers.removeAt(renderers.lastIndex)
+        while (effects.size < configs.size) effects.add(SwimEffects())
+        while (effects.size > configs.size) effects.removeAt(effects.lastIndex)
+        effects.forEach { it.clear() }
         invalidate()
     }
 
@@ -199,6 +204,14 @@ class SharkPreviewView(context: Context) : View(context) {
                 species = config.species
             )
 
+            renderers[index].update(dt, config, nav)
+            effects[index].update(dt, nav.x, nav.y, nav.angle, nav.angularVelocity, scale)
+        }
+
+        for (effect in effects) effectsPainter.draw(canvas, effect)
+        configs.forEachIndexed { index, config ->
+            val nav = swimmers[index]
+            val scale = config.size / 100f
             canvas.save()
 
             canvas.translate(
@@ -209,7 +222,6 @@ class SharkPreviewView(context: Context) : View(context) {
             canvas.rotate(nav.angle)
             canvas.scale(scale, scale)
 
-            renderers[index].update(dt, config, nav)
             renderers[index].draw(canvas, 110f, nav.phase)
 
             canvas.restore()
@@ -237,5 +249,6 @@ class SharkPreviewView(context: Context) : View(context) {
         super.onDetachedFromWindow()
     }
 }
+
 
 

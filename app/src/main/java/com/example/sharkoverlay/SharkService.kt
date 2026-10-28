@@ -81,6 +81,7 @@ class SharkService : Service() {
                 )
 
                 shark.renderer.update(dt, config, nav)
+                shark.effects.update(dt, nav.x, nav.y, nav.angle, nav.angularVelocity, shark.scale)
             }
             // One transparent surface; no per-pet WindowManager/input-region moves.
             view.invalidate()
@@ -273,11 +274,13 @@ private data class Shark(
     val config: SharkConfig,
     val scale: Float,
     val navigator: SharkNavigator,
-    val renderer: SharkRenderer = SharkRenderer()
+    val renderer: SharkRenderer = SharkRenderer(),
+    val effects: SwimEffects = SwimEffects()
 )
 
 private class SharkView(context: Context, private val sharks: List<Shark>) : View(context) {
     private val artReady: () -> Unit = { invalidate() }
+    private val effectsPainter = SwimEffectsPainter()
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
@@ -293,6 +296,7 @@ private class SharkView(context: Context, private val sharks: List<Shark>) : Vie
         super.onDraw(canvas)
         // Explicitly erase previous positions on this window's own surface only.
         canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
+        for (shark in sharks) effectsPainter.draw(canvas, shark.effects)
         for (shark in sharks) {
             canvas.save()
             canvas.translate(shark.navigator.x, shark.navigator.y)
@@ -302,4 +306,5 @@ private class SharkView(context: Context, private val sharks: List<Shark>) : Vie
         }
     }
 }
+
 
