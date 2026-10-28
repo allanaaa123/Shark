@@ -4,6 +4,13 @@ import kotlin.math.*
 
 /** Continuous swim deformation of one clean pose; no optical-flow frames or clip seam. */
 object SpeciesSwimMotion {
+    fun tailY(half: Float, phase: Double, species: SharkSpecies, bodyBend: Float, tailBend: Float): Float {
+        val r = 1.30f / 1.45f // normalized tail anchor x = -0.85
+        val wave = if (species == SharkSpecies.WHALE_SHARK)
+            0.14f * r * r * sin(phase - r * 1.4).toFloat() else 0f
+        return half * (wave - 0.11f * bodyBend * r * r - 0.16f * tailBend * r * r * r)
+    }
+
     // Match the renderer's shared mesh buffer and Android drawBitmapMesh topology.
     const val COLUMNS = HammerheadMotion.COLUMNS
     const val ROWS = HammerheadMotion.ROWS
@@ -12,7 +19,8 @@ object SpeciesSwimMotion {
         ((0.45f - x) / 1.45f).coerceIn(0f, 1f)
     }
 
-    fun fill(vertices: FloatArray, half: Float, phase: Double, species: SharkSpecies) {
+    fun fill(vertices: FloatArray, half: Float, phase: Double, species: SharkSpecies,
+             bodyBend: Float = 0f, tailBend: Float = 0f) {
         require(vertices.size == HammerheadMotion.VERTEX_FLOATS)
         require(species == SharkSpecies.WHALE_SHARK || species == SharkSpecies.ORCA)
         var index = 0
@@ -31,8 +39,12 @@ object SpeciesSwimMotion {
                     y * (1f + 0.16f * weight * wave)
                 }
                 vertices[index++] = half * x
-                vertices[index++] = half * localY
+                // A broad torso bend leads a more delayed rear-body response.
+                val curve = -0.11f * bodyBend.coerceIn(-1f, 1f) * r * r -
+                    0.16f * tailBend.coerceIn(-1f, 1f) * r * r * r
+                vertices[index++] = half * (localY + curve)
             }
         }
     }
 }
+

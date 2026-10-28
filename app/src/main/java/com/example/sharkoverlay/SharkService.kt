@@ -25,7 +25,12 @@ class SharkService : Service() {
     private var overlayView: SharkView? = null
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == Intent.ACTION_SCREEN_OFF) {
+            if (intent?.action == "$packageName.EFFECTS_CHANGED") {
+                val prefs = getSharedPreferences("shark", MODE_PRIVATE)
+                val strength = EffectsStrength.fromId(prefs.getString(EffectsStrength.PREFERENCE, null))
+                sharks.forEach { it.effects.applyStrength(strength) }
+                overlayView?.invalidate()
+            } else if (intent?.action == Intent.ACTION_SCREEN_OFF) {
                 choreographer.removeFrameCallback(loop)
                 lastTime = 0L
             } else if (intent?.action == Intent.ACTION_SCREEN_ON && running) {
@@ -38,7 +43,10 @@ class SharkService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        val filter = IntentFilter(Intent.ACTION_SCREEN_OFF).apply { addAction(Intent.ACTION_SCREEN_ON) }
+        val filter = IntentFilter(Intent.ACTION_SCREEN_OFF).apply {
+            addAction(Intent.ACTION_SCREEN_ON)
+            addAction("$packageName.EFFECTS_CHANGED")
+        }
         if (Build.VERSION.SDK_INT >= 33) registerReceiver(screenReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
         else registerReceiver(screenReceiver, filter)
     }
@@ -81,7 +89,8 @@ class SharkService : Service() {
                 )
 
                 shark.renderer.update(dt, config, nav)
-                shark.effects.update(dt, nav.x, nav.y, nav.angle, nav.angularVelocity, shark.scale)
+                shark.effects.update(dt, nav.x, nav.y, nav.angle, nav.angularVelocity, shark.scale,
+                    tailOffsetY = shark.renderer.tailOffsetY(shark.scale))
             }
             // One transparent surface; no per-pet WindowManager/input-region moves.
             view.invalidate()
@@ -169,6 +178,8 @@ class SharkService : Service() {
             MODE_PRIVATE
         )
 
+        val effectsStrength = EffectsStrength.fromId(prefs.getString(EffectsStrength.PREFERENCE, null))
+
         try {
             val array = JSONArray(
                 prefs.getString("sharks", "[]") ?: "[]"
@@ -201,6 +212,7 @@ class SharkService : Service() {
             sharks.add(Shark(
                 config = config,
                 scale = scale,
+                effects = SwimEffects().apply { setStrength(effectsStrength) },
                 navigator = SharkNavigator(
                     minX + random.nextFloat() * max(0f, screenW - 2f * minX),
                     minY + random.nextFloat() * max(0f, screenH - 2f * minY),
@@ -306,5 +318,6 @@ private class SharkView(context: Context, private val sharks: List<Shark>) : Vie
         }
     }
 }
+
 
 

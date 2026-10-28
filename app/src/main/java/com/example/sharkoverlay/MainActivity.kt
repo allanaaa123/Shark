@@ -104,10 +104,41 @@ class MainActivity : Activity() {
         })
 
         preview = SharkPreviewView(this)
+        val initialEffects = EffectsStrength.fromId(prefs.getString(EffectsStrength.PREFERENCE, null))
+        preview.applyEffectsStrength(initialEffects)
         root.addView(
             preview,
             LinearLayout.LayoutParams(-1, dp(190))
         )
+
+        root.addView(TextView(this).apply {
+            text = "水中特效"
+            textSize = 18f
+            setPadding(0, dp(16), 0, dp(4))
+        })
+        root.addView(TextView(this).apply {
+            text = "立即套用到預覽與桌面寵物，轉彎時氣泡較多。"
+            textSize = 13f
+        })
+        root.addView(RadioGroup(this).apply {
+            orientation = RadioGroup.HORIZONTAL
+            EffectsStrength.entries.forEach { strength ->
+                addView(RadioButton(this@MainActivity).apply {
+                    id = View.generateViewId()
+                    text = strength.label
+                    tag = strength
+                    isChecked = strength == initialEffects
+                })
+            }
+            setOnCheckedChangeListener { group, checkedId ->
+                val selected = group.findViewById<RadioButton>(checkedId)?.tag as? EffectsStrength
+                if (selected != null) {
+                    prefs.edit().putString(EffectsStrength.PREFERENCE, selected.id).apply()
+                    preview.applyEffectsStrength(selected)
+                    sendBroadcast(Intent("$packageName.EFFECTS_CHANGED").setPackage(packageName))
+                }
+            }
+        })
 
         root.addView(Button(this).apply {
             text = "啟動 / 更新桌面寵物"
@@ -264,4 +295,5 @@ class MainActivity : Activity() {
         preview.setSharks(sharks.toList())
     }
 }
+
 

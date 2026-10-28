@@ -111,9 +111,11 @@ class SharkRenderer {
     private val mesh = FloatArray(HammerheadMotion.VERTEX_FLOATS)
     private var tailPhase = 0.0
     private var turnBend = 0f
+    private val turnPose = TurnPose()
 
     fun update(dt: Float, config: SharkConfig, navigator: SharkNavigator) {
         timing.advance(dt, config.speed, navigator.speedMultiplier)
+        turnPose.update(dt, navigator.angularVelocity)
         tailPhase = timing.swimTimeMs / 1008.0 * 2.0 * Math.PI
         val targetBend = if (config.species == SharkSpecies.HAMMERHEAD)
             (navigator.angularVelocity / 220f).coerceIn(-1f, 1f) else 0f
@@ -132,6 +134,14 @@ class SharkRenderer {
         blend = (blend + dt / 0.12f).coerceAtMost(1f)
         val clip = SharkArt.clip(currentSpecies, motion) ?: return
         currentFrame = timing.frame(motion, navigator.turnProgress, clip.frames, clip.durationMs)
+    }
+
+    fun tailOffsetY(scale: Float): Float {
+        if (currentSpecies == SharkSpecies.HAMMERHEAD) return 0f
+        val cycleMs = if (currentSpecies == SharkSpecies.WHALE_SHARK) 1600.0 else 1400.0
+        return SpeciesSwimMotion.tailY(110f * scale * 192f / 170f / 2f,
+            timing.swimTimeMs / cycleMs * 2.0 * Math.PI, currentSpecies,
+            turnPose.bodyBend, turnPose.tailBend)
     }
 
     fun draw(canvas: Canvas, bodyLength: Float, fallbackPhase: Float) {
@@ -166,7 +176,8 @@ class SharkRenderer {
             } else {
                 val cycleMs = if (species == SharkSpecies.WHALE_SHARK) 1600.0 else 1400.0
                 SpeciesSwimMotion.fill(mesh, target.width() / 2f,
-                    timing.swimTimeMs / cycleMs * 2.0 * Math.PI, species)
+                    timing.swimTimeMs / cycleMs * 2.0 * Math.PI, species,
+                    turnPose.bodyBend, turnPose.tailBend)
             }
             canvas.drawBitmapMesh(clip.meshFrames[frame], HammerheadMotion.COLUMNS,
                 HammerheadMotion.ROWS, mesh, 0, null, 0, paint)
@@ -180,4 +191,5 @@ class SharkRenderer {
         canvas.drawBitmap(atlas, source, target, paint)
     }
 }
+
 

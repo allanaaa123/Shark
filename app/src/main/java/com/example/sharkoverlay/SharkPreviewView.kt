@@ -19,6 +19,14 @@ class SharkPreviewView(context: Context) : View(context) {
     private val random = Random.Default
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
 
+    private var effectsStrength = EffectsStrength.GENTLE
+
+    fun applyEffectsStrength(value: EffectsStrength) {
+        effectsStrength = value
+        effects.forEach { it.applyStrength(value) }
+        invalidate()
+    }
+
     private var lastTime = 0L
 
     fun setSharks(items: List<SharkConfig>) {
@@ -41,7 +49,7 @@ class SharkPreviewView(context: Context) : View(context) {
 
         while (renderers.size < configs.size) renderers.add(SharkRenderer())
         while (renderers.size > configs.size) renderers.removeAt(renderers.lastIndex)
-        while (effects.size < configs.size) effects.add(SwimEffects())
+        while (effects.size < configs.size) effects.add(SwimEffects().apply { setStrength(effectsStrength) })
         while (effects.size > configs.size) effects.removeAt(effects.lastIndex)
         effects.forEach { it.clear() }
         invalidate()
@@ -205,7 +213,8 @@ class SharkPreviewView(context: Context) : View(context) {
             )
 
             renderers[index].update(dt, config, nav)
-            effects[index].update(dt, nav.x, nav.y, nav.angle, nav.angularVelocity, scale)
+            effects[index].update(dt, nav.x, nav.y, nav.angle, nav.angularVelocity, scale,
+                tailOffsetY = renderers[index].tailOffsetY(scale))
         }
 
         for (effect in effects) effectsPainter.draw(canvas, effect)
@@ -249,6 +258,7 @@ class SharkPreviewView(context: Context) : View(context) {
         super.onDetachedFromWindow()
     }
 }
+
 
 
 
