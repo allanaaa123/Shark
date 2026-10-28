@@ -17,6 +17,9 @@ import org.json.JSONObject
 
 class MainActivity : Activity() {
     private lateinit var list: LinearLayout
+    private lateinit var listToggle: Button
+    private lateinit var pageScroll: ScrollView
+    private var listExpanded = false
     private lateinit var preview: SharkPreviewView
     private lateinit var count: TextView
     private val sharks = mutableListOf<SharkConfig>()
@@ -40,6 +43,7 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val prefs = getSharedPreferences("shark", MODE_PRIVATE)
+        listExpanded = prefs.getBoolean("shark_list_expanded", false)
 
         try {
             val saved = JSONArray(prefs.getString("sharks", "[]") ?: "[]")
@@ -59,7 +63,8 @@ class MainActivity : Activity() {
             sharks.add(SharkConfig(100, 100))
         }
 
-        val scroll = ScrollView(this)
+        pageScroll = ScrollView(this)
+        val scroll = pageScroll
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(20), dp(28), dp(20), dp(24))
@@ -86,6 +91,11 @@ class MainActivity : Activity() {
             text = "🎲 隨機新增 N 隻"
             setOnClickListener { showRandomAddDialog() }
         })
+
+        listToggle = Button(this).apply {
+            setOnClickListener { changeListExpansion(!listExpanded) }
+        }
+        root.addView(listToggle)
 
         list = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -358,7 +368,29 @@ class MainActivity : Activity() {
     private fun refresh() {
         count.text = "海洋寵物：${sharks.size} / ${SharkConfig.MAX_PETS} 隻"
         list.removeAllViews()
+        applyListExpansion()
+        preview.setSharks(sharks.toList())
+    }
 
+    private fun changeListExpansion(expanded: Boolean) {
+        listExpanded = expanded
+        getSharedPreferences("shark", MODE_PRIVATE).edit()
+            .putBoolean("shark_list_expanded", expanded).apply()
+        applyListExpansion()
+        if (!expanded) listToggle.post {
+            pageScroll.smoothScrollTo(0, listToggle.top)
+        }
+    }
+
+    private fun applyListExpansion() {
+        listToggle.text = if (listExpanded) "▼ 收合鯊魚清單（${sharks.size} 隻）"
+            else "▶ 展開鯊魚清單（${sharks.size} 隻）"
+        list.visibility = if (listExpanded) View.VISIBLE else View.GONE
+        // Populate controls only when opened; folding does not touch the preview.
+        if (listExpanded && list.childCount == 0) renderSharkCards()
+    }
+
+    private fun renderSharkCards() {
         sharks.forEachIndexed { index, shark ->
             val box = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
@@ -446,13 +478,16 @@ class MainActivity : Activity() {
             )
         }
 
-        preview.setSharks(sharks.toList())
+        if (sharks.isNotEmpty()) {
+            list.addView(Button(this).apply {
+                text = "▲ 收合鯊魚清單"
+                setOnClickListener { changeListExpansion(false) }
+            })
+        } else {
+            list.addView(TextView(this).apply {
+                text = "還沒有寵物，可以使用上方按鈕新增。"
+                setPadding(0, dp(8), 0, dp(8))
+            })
+        }
     }
 }
-
-
-
-
-
-
-
