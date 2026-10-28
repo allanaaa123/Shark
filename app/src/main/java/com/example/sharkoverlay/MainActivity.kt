@@ -27,7 +27,7 @@ class MainActivity : Activity() {
 
         try {
             val saved = JSONArray(prefs.getString("sharks", "[]") ?: "[]")
-            for (i in 0 until saved.length()) {
+            for (i in 0 until minOf(10, saved.length())) {
                 val obj = saved.getJSONObject(i)
                 sharks.add(
                     SharkConfig(
@@ -253,3 +253,4 @@ class MainActivity : Activity() {
         preview.setSharks(sharks.toList())
     }
 }
+

@@ -24,6 +24,14 @@ class SharkNavigator(
     private var turnRemaining = 0f
     private var turnSign = 1f
     private var cruiseRemaining = 0f
+    private var turnTotal = 0f
+
+    val motion: SharkMotion
+        get() = if (mode == Mode.CRUISE) SharkMotion.SWIM
+                else if (turnSign < 0f) SharkMotion.TURN_LEFT else SharkMotion.TURN_RIGHT
+
+    val turnProgress: Float
+        get() = if (turnTotal > 0f) (1f - turnRemaining / turnTotal).coerceIn(0f, 1f) else 0f
 
     var phase = random.nextFloat() * 6.283185f
         private set
@@ -103,6 +111,7 @@ class SharkNavigator(
                 turnRemaining =
                     145f + random.nextFloat() * 35f
 
+                turnTotal = turnRemaining
                 mode = Mode.TURN
 
             } else if (cruiseRemaining <= 0f) {
@@ -114,6 +123,7 @@ class SharkNavigator(
                     turnRemaining =
                         15f + random.nextFloat() * 30f
 
+                    turnTotal = turnRemaining
                     mode = Mode.TURN
                 }
 
@@ -171,3 +181,4 @@ class SharkNavigator(
         phase += dt * (4f + v / 25f)
     }
 }
+

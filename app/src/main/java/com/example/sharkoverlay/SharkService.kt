@@ -27,10 +27,29 @@ class SharkService : Service() {
     private val sharks = mutableListOf<Shark>()
     private var running = false
     private var lastTime = 0L
+    private val screenReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == Intent.ACTION_SCREEN_OFF) {
+                handler.removeCallbacks(loop)
+                lastTime = 0L
+            } else if (intent?.action == Intent.ACTION_SCREEN_ON && running) {
+                handler.removeCallbacks(loop)
+                lastTime = 0L
+                handler.post(loop)
+            }
+        }
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        val filter = IntentFilter(Intent.ACTION_SCREEN_OFF).apply { addAction(Intent.ACTION_SCREEN_ON) }
+        if (Build.VERSION.SDK_INT >= 33) registerReceiver(screenReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        else registerReceiver(screenReceiver, filter)
+    }
 
     private val loop = object : Runnable {
         override fun run() {
-            if (!running) return
+            if (!running || !getSystemService(PowerManager::class.java).isInteractive) return
 
             val now = SystemClock.uptimeMillis()
             val dt = if (lastTime == 0L) {
@@ -78,6 +97,7 @@ class SharkService : Service() {
 
                 shark.view.angle = nav.angle
                 shark.view.phase = nav.phase
+                shark.view.updateAnimation(dt, config, nav)
 
                 try {
                     wm.updateViewLayout(
@@ -302,6 +322,7 @@ class SharkService : Service() {
 
     override fun onDestroy() {
         clearSharks()
+        unregisterReceiver(screenReceiver)
         super.onDestroy()
     }
 }
@@ -313,9 +334,22 @@ private class SharkView(
     var angle = 0f
     var phase = 0f
 
-    private val paint = Paint(
-        Paint.ANTI_ALIAS_FLAG
-    )
+    private val renderer = SharkRenderer()
+    private val artReady: () -> Unit = { invalidate() }
+
+    fun updateAnimation(dt: Float, config: SharkConfig, navigator: SharkNavigator) {
+        renderer.update(dt, config, navigator)
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        SharkArt.observe(context, artReady)
+    }
+
+    override fun onDetachedFromWindow() {
+        SharkArt.removeObserver(artReady)
+        super.onDetachedFromWindow()
+    }
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
@@ -336,12 +370,9 @@ private class SharkView(
 
         canvas.scale(scale, scale)
 
-        SharkPreviewView.drawHammerhead(
-            canvas,
-            paint,
-            phase
-        )
+        renderer.draw(canvas, 110f, phase)
 
         canvas.restore()
     }
 }
+

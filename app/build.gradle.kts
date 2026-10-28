@@ -4,3 +4,7 @@ android { namespace = "com.example.sharkoverlay"; compileSdk = 35
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }
 }
+
+
+// JVM tests cover animation timing and navigator transitions.
+dependencies { testImplementation("junit:junit:4.13.2") }

@@ -14,3 +14,13 @@
 - 懸浮視窗設為 `FLAG_NOT_TOUCHABLE`，因此可穿透觸控；尚未實作拖曳或點擊鯊魚。
 - Android 版本、廠商省電策略可能限制長時間背景運作。某些系統安全畫面不允許覆蓋。
 - 本環境未實際執行 Android Gradle 編譯，需在 Android Studio 驗證。
+
+
+## 擬真動畫版本（開發分支）
+
+使用透明雙髻鯊 WebP 衍生圖集，支援直游、左轉、右轉，保留最多 10 隻、個別尺寸／速度與原有設定。
+Android 8 以上使用同一套逐格播放器；原始動畫和素材處理方式見 [動畫整合說明](docs/animation-integration.md)。
+
+手機測試：開啟 PR 的 Checks，進入 `Build Android APK` 成功的執行紀錄，
+在 Artifacts 下載 `SharkOverlay-APK`，解壓縮後安裝其中的 debug APK。
+PR 不需要先合併即可取得測試版。安裝來源需由使用者在 Android 系統允許。

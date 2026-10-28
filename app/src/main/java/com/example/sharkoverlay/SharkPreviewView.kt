@@ -12,6 +12,8 @@ class SharkPreviewView(context: Context) : View(context) {
 
     private val configs = mutableListOf<SharkConfig>()
     private val swimmers = mutableListOf<SharkNavigator>()
+    private val renderers = mutableListOf<SharkRenderer>()
+    private val artReady: () -> Unit = { invalidate() }
     private val random = Random.Default
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
 
@@ -35,6 +37,8 @@ class SharkPreviewView(context: Context) : View(context) {
             swimmers.removeAt(swimmers.lastIndex)
         }
 
+        while (renderers.size < configs.size) renderers.add(SharkRenderer())
+        while (renderers.size > configs.size) renderers.removeAt(renderers.lastIndex)
         invalidate()
     }
 
@@ -160,6 +164,8 @@ class SharkPreviewView(context: Context) : View(context) {
 
         canvas.drawColor(Color.rgb(18, 18, 18))
 
+        if (!isShown || windowVisibility != VISIBLE) return
+
         val now = SystemClock.uptimeMillis()
 
         val dt = if (lastTime == 0L) {
@@ -202,11 +208,8 @@ class SharkPreviewView(context: Context) : View(context) {
             canvas.rotate(nav.angle)
             canvas.scale(scale, scale)
 
-            drawHammerhead(
-                canvas,
-                paint,
-                nav.phase
-            )
+            renderers[index].update(dt, config, nav)
+            renderers[index].draw(canvas, 110f, nav.phase)
 
             canvas.restore()
         }
@@ -214,8 +217,23 @@ class SharkPreviewView(context: Context) : View(context) {
         postInvalidateDelayed(40L)
     }
 
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        SharkArt.observe(context, artReady)
+        lastTime = 0L
+        invalidate()
+    }
+
+    override fun onWindowVisibilityChanged(visibility: Int) {
+        super.onWindowVisibilityChanged(visibility)
+        lastTime = 0L
+        if (visibility == VISIBLE) invalidate()
+    }
+
     override fun onDetachedFromWindow() {
+        SharkArt.removeObserver(artReady)
         lastTime = 0L
         super.onDetachedFromWindow()
     }
 }
+
