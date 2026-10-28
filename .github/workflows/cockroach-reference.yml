@@ -1,0 +1,29 @@
+name: Inspect cockroach locomotion reference
+on:
+  push:
+    branches: [codex/cockroach-crawl-preview]
+    paths: [.github/workflows/cockroach-reference.yml]
+permissions:
+  contents: read
+jobs:
+  reference:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download scientific top-view video and extract visual reference
+        run: |
+          curl --fail --location --retry 2 --max-time 60 'https://upload.wikimedia.org/wikipedia/commons/9/9a/Periplaneta_americana_performing_a_high-speed_inversion_on_a_ramp_%28top_view%29_-_Journal.pone.0038003.s001.ogv' -o reference.ogv
+          command -v ffmpeg || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg)
+          ffmpeg -hide_banner -loglevel error -i reference.ogv -vf 'fps=6,scale=216:374,tpad=stop_mode=clone:stop_duration=2,tile=6x8' -frames:v 1 -q:v 5 contact.jpg
+          python - <<'PY'
+          import base64
+          from pathlib import Path
+          print("CONTACT_BASE64_BEGIN")
+          print(base64.b64encode(Path("contact.jpg").read_bytes()).decode())
+          print("CONTACT_BASE64_END")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cockroach-reference
+          path: |
+            reference.ogv
+            contact.jpg
