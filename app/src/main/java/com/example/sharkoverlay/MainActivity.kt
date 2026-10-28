@@ -2,6 +2,7 @@
 package com.example.sharkoverlay
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -30,9 +31,10 @@ class MainActivity : Activity() {
             for (i in 0 until minOf(10, saved.length())) {
                 val obj = saved.getJSONObject(i)
                 sharks.add(
-                    SharkConfig(
-                        obj.optInt("size", 100).coerceIn(30, 200),
-                        obj.optInt("speed", 100).coerceIn(20, 200)
+                    SharkConfig.fromSaved(
+                        obj.optInt("size", 100),
+                        obj.optInt("speed", 100),
+                        obj.optString("species", "")
                     )
                 )
             }
@@ -50,14 +52,14 @@ class MainActivity : Activity() {
         scroll.addView(root)
 
         root.addView(TextView(this).apply {
-            text = "桌面雙髻鯊"
+            text = "桌面海洋寵物"
             textSize = 27f
             setTextColor(Color.BLACK)
             setTypeface(null, Typeface.BOLD)
         })
 
         root.addView(TextView(this).apply {
-            text = "每隻鯊魚可以獨立設定大小和游速"
+            text = "選擇雙髻鯊、鯨鯊或殺人鯨，每隻可獨立設定大小和游速"
             textSize = 14f
             setPadding(0, dp(8), 0, dp(14))
         })
@@ -71,12 +73,20 @@ class MainActivity : Activity() {
         root.addView(list)
 
         root.addView(Button(this).apply {
-            text = "＋ 新增雙髻鯊"
+            text = "＋ 新增鯊魚／鯨魚"
             setOnClickListener {
                 if (sharks.size < 10) {
-                    sharks.add(SharkConfig(100, 100))
-                    save()
-                    refresh()
+                    AlertDialog.Builder(this@MainActivity)
+                        .setTitle("選擇要新增的寵物")
+                        .setItems(SharkSpecies.entries.map { it.displayName }.toTypedArray()) { _, which ->
+                            if (sharks.size < 10) {
+                                sharks.add(SharkConfig(species = SharkSpecies.entries[which]))
+                                save()
+                                refresh()
+                            }
+                        }
+                        .setNegativeButton("取消", null)
+                        .show()
                 } else {
                     Toast.makeText(
                         this@MainActivity,
@@ -100,7 +110,7 @@ class MainActivity : Activity() {
         )
 
         root.addView(Button(this).apply {
-            text = "啟動 / 更新桌面鯊魚"
+            text = "啟動 / 更新桌面寵物"
             setOnClickListener {
                 save()
                 if (!Settings.canDrawOverlays(this@MainActivity)) {
@@ -125,7 +135,7 @@ class MainActivity : Activity() {
         })
 
         root.addView(Button(this).apply {
-            text = "停止所有鯊魚"
+            text = "停止所有寵物"
             setOnClickListener {
                 startService(
                     Intent(this@MainActivity, SharkService::class.java)
@@ -135,7 +145,7 @@ class MainActivity : Activity() {
         })
 
         root.addView(TextView(this).apply {
-            text = "鯊魚會在其他 App 上方游動，不會阻擋觸控。"
+            text = "寵物會在其他 App 上方游動，不會阻擋觸控。"
             textSize = 12f
             setPadding(0, dp(10), 0, 0)
         })
@@ -151,6 +161,7 @@ class MainActivity : Activity() {
                 JSONObject()
                     .put("size", it.size)
                     .put("speed", it.speed)
+                    .put("species", it.species.id)
             )
         }
         getSharedPreferences("shark", MODE_PRIVATE)
@@ -160,7 +171,7 @@ class MainActivity : Activity() {
     }
 
     private fun refresh() {
-        count.text = "雙髻鯊：${sharks.size} 隻"
+        count.text = "海洋寵物：${sharks.size} / 10 隻"
         list.removeAllViews()
 
         sharks.forEachIndexed { index, shark ->
@@ -177,7 +188,7 @@ class MainActivity : Activity() {
 
             heading.addView(
                 TextView(this).apply {
-                    text = "雙髻鯊 ${index + 1}"
+                    text = "${index + 1}. ${shark.species.displayName}"
                     textSize = 18f
                     setTypeface(null, Typeface.BOLD)
                 },
@@ -187,7 +198,7 @@ class MainActivity : Activity() {
             heading.addView(Button(this).apply {
                 text = "刪除"
                 setOnClickListener {
-                    sharks.remove(shark)
+                    sharks.removeAt(index)
                     save()
                     refresh()
                 }

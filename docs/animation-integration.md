@@ -88,5 +88,32 @@ setting remains the baseline. Both swim cadence and procedural fallback phase
 follow actual navigation speed. Tiny preview viewports cap travel speed relative
 to viewport size to avoid overshooting the entire view each tick.
 
-Whale shark and orca concept animations are review artifacts only. They are not
-included in Android assets, configuration choices or this implementation.
+## Species selection and persistence
+
+The Add button opens a three-option species picker: hammerhead, whale shark,
+and orca. The limit is ten pets total across all species. Each settings card
+shows its species name, size and speed. Preferences now include the stable
+`species` ID (`hammerhead`, `whale_shark`, `orca`). Missing or unknown IDs map to
+hammerhead; size/speed are clamped through the same `SharkConfig.fromSaved`
+factory in both Activity and Service. Deletion uses list position rather than
+data equality so identical-looking configurations remain independently removable.
+
+The two user-approved concept animations are packaged in
+`assets/shark/whale_shark/` and `assets/shark/orca/`, each as a transparent source
+WebP plus an eight-frame atlas and manifest. They keep playing their swim cycle
+through navigation turns; only hammerheads currently have dedicated turn clips.
+The common clock wrap is the LCM of all three swim durations, so whale shark and
+orca loops do not reset abruptly at the hammerhead's 3024ms boundary. All five
+atlases together require 25.875 MiB of shared ARGB storage, excluding GPU copies.
+
+Regenerate and check with:
+
+```sh
+python tools/prepare_species_assets.py /directory/with/approved/concept_webps
+python tools/check_species_assets.py
+```
+
+The new clips remain eight-pose concept-quality art approved for this version,
+not newly authored 24fps anatomical animations. Device testing should cover
+mixed species, adding/canceling at the ten-pet limit, deleting identical configs,
+relaunching the Activity and restarting the Service.

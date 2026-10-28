@@ -133,7 +133,7 @@ class SharkService : Service() {
         notificationManager.createNotificationChannel(
             NotificationChannel(
                 channelId,
-                "桌面雙髻鯊",
+                "桌面海洋寵物",
                 NotificationManager.IMPORTANCE_LOW
             )
         )
@@ -159,7 +159,7 @@ class SharkService : Service() {
 
         val notification =
             Notification.Builder(this, channelId)
-                .setContentTitle("雙髻鯊游泳中")
+                .setContentTitle("海洋寵物游泳中")
                 .setContentText("點擊調整設定")
                 .setSmallIcon(
                     android.R.drawable.ic_menu_compass
@@ -202,15 +202,10 @@ class SharkService : Service() {
                 val obj = array.getJSONObject(i)
 
                 configs.add(
-                    SharkConfig(
-                        size = obj.optInt(
-                            "size",
-                            100
-                        ).coerceIn(30, 200),
-                        speed = obj.optInt(
-                            "speed",
-                            100
-                        ).coerceIn(20, 200)
+                    SharkConfig.fromSaved(
+                        size = obj.optInt("size", 100),
+                        speed = obj.optInt("speed", 100),
+                        speciesId = obj.optString("species", "")
                     )
                 )
             }
