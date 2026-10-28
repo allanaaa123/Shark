@@ -4,6 +4,8 @@ package com.example.sharkoverlay
 import android.app.*
 import android.content.*
 import android.graphics.*
+import android.hardware.input.InputManager
+import android.util.Log
 import android.os.*
 import android.provider.Settings
 import android.view.*
@@ -17,16 +19,10 @@ class SharkService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private val random = Random.Default
 
-    private data class Shark(
-        val config: SharkConfig,
-        val view: SharkView,
-        val params: WindowManager.LayoutParams,
-        val navigator: SharkNavigator
-    )
-
     private val sharks = mutableListOf<Shark>()
     private var running = false
     private var lastTime = 0L
+    private var overlayView: SharkView? = null
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == Intent.ACTION_SCREEN_OFF) {
@@ -61,8 +57,9 @@ class SharkService : Service() {
             lastTime = now
 
             val metrics = resources.displayMetrics
-            val screenW = metrics.widthPixels.toFloat()
-            val screenH = metrics.heightPixels.toFloat()
+            val view = overlayView ?: return
+            val screenW = view.width.takeIf { it > 0 }?.toFloat() ?: metrics.widthPixels.toFloat()
+            val screenH = view.height.takeIf { it > 0 }?.toFloat() ?: metrics.heightPixels.toFloat()
 
             sharks.forEach { shark ->
                 val nav = shark.navigator
@@ -72,12 +69,7 @@ class SharkService : Service() {
                     65f * metrics.density *
                     config.speed / 100f
 
-                // 導航使用鯊魚中心座標。
-                val radius =
-                    min(
-                        shark.params.width,
-                        shark.params.height
-                    ) * 0.36f
+                val radius = 64.8f * shark.scale
 
                 nav.update(
                     dtSeconds = dt,
@@ -88,28 +80,10 @@ class SharkService : Service() {
                     species = config.species
                 )
 
-                shark.params.x = (
-                    nav.x - shark.params.width / 2f
-                ).toInt()
-
-                shark.params.y = (
-                    nav.y - shark.params.height / 2f
-                ).toInt()
-
-                shark.view.angle = nav.angle
-                shark.view.phase = nav.phase
-                shark.view.updateAnimation(dt, config, nav)
-
-                try {
-                    wm.updateViewLayout(
-                        shark.view,
-                        shark.params
-                    )
-                    shark.view.invalidate()
-                } catch (_: Exception) {
-                    // Overlay may have been removed.
-                }
+                shark.renderer.update(dt, config, nav)
             }
+            // One transparent surface; no per-pet WindowManager/input-region moves.
+            view.invalidate()
 
             handler.postDelayed(this, 40L)
         }
@@ -219,78 +193,50 @@ class SharkService : Service() {
         val screenH = metrics.heightPixels
 
         configs.forEach { config ->
-            val scale = config.size / 100f
-
-            val viewSize = (
-                180f * scale * metrics.density
-            ).toInt().coerceAtLeast(1)
-
-            val params = WindowManager.LayoutParams(
-                viewSize,
-                viewSize,
-                WindowManager.LayoutParams
-                    .TYPE_APPLICATION_OVERLAY,
-                WindowManager.LayoutParams
-                    .FLAG_NOT_FOCUSABLE or
-                    WindowManager.LayoutParams
-                        .FLAG_NOT_TOUCHABLE or
-                    WindowManager.LayoutParams
-                        .FLAG_LAYOUT_NO_LIMITS,
-                PixelFormat.TRANSLUCENT
-            ).apply {
-                gravity = Gravity.TOP or Gravity.START
-            }
-
-            val radius = viewSize * 0.36f
-
-            val minX = radius.coerceAtMost(
-                screenW * 0.45f
-            )
-            val minY = radius.coerceAtMost(
-                screenH * 0.45f
-            )
-
-            val x = minX +
-                random.nextFloat() *
-                max(0f, screenW - 2f * minX)
-
-            val y = minY +
-                random.nextFloat() *
-                max(0f, screenH - 2f * minY)
-
-            val navigator = SharkNavigator(
-                x = x,
-                y = y,
-                angle = random.nextFloat() * 360f
-            )
-
-            params.x = (
-                x - viewSize / 2f
-            ).toInt()
-
-            params.y = (
-                y - viewSize / 2f
-            ).toInt()
-
-            val view = SharkView(this).apply {
-                angle = navigator.angle
-                phase = navigator.phase
-            }
-
-            try {
-                wm.addView(view, params)
-
-                sharks.add(
-                    Shark(
-                        config = config,
-                        view = view,
-                        params = params,
-                        navigator = navigator
-                    )
+            val scale = config.size / 100f * metrics.density
+            val radius = 64.8f * scale
+            val minX = radius.coerceAtMost(screenW * 0.45f)
+            val minY = radius.coerceAtMost(screenH * 0.45f)
+            sharks.add(Shark(
+                config = config,
+                scale = scale,
+                navigator = SharkNavigator(
+                    minX + random.nextFloat() * max(0f, screenW - 2f * minX),
+                    minY + random.nextFloat() * max(0f, screenH - 2f * minY),
+                    random.nextFloat() * 360f
                 )
-            } catch (_: Exception) {
-                // Skip if overlay cannot be added.
-            }
+            ))
+        }
+
+        if (sharks.isEmpty()) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
+        val maximumOpacity = if (Build.VERSION.SDK_INT >= 31) {
+            runCatching { getSystemService(InputManager::class.java).maximumObscuringOpacityForTouch }
+                .getOrDefault(0.8f)
+        } else 1f
+        val params = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            alpha = OverlayTouchPolicy.windowAlpha(Build.VERSION.SDK_INT, maximumOpacity)
+        }
+        val view = SharkView(this, sharks)
+        try {
+            wm.addView(view, params)
+            overlayView = view
+        } catch (error: Exception) {
+            Log.e("SharkService", "Cannot attach pet overlay", error)
+            stopSelf()
+            return START_NOT_STICKY
         }
 
         lastTime = 0L
@@ -305,13 +251,13 @@ class SharkService : Service() {
         running = false
         handler.removeCallbacks(loop)
 
-        if (::wm.isInitialized) {
-            sharks.forEach { shark ->
-                try {
-                    wm.removeView(shark.view)
-                } catch (_: Exception) {}
+        overlayView?.let { view ->
+            if (::wm.isInitialized) {
+                try { wm.removeView(view) } catch (_: IllegalArgumentException) { }
             }
         }
+        overlayView = null
+        lastTime = 0L
 
         sharks.clear()
     }
@@ -323,19 +269,15 @@ class SharkService : Service() {
     }
 }
 
-private class SharkView(
-    context: Context
-) : View(context) {
+private data class Shark(
+    val config: SharkConfig,
+    val scale: Float,
+    val navigator: SharkNavigator,
+    val renderer: SharkRenderer = SharkRenderer()
+)
 
-    var angle = 0f
-    var phase = 0f
-
-    private val renderer = SharkRenderer()
+private class SharkView(context: Context, private val sharks: List<Shark>) : View(context) {
     private val artReady: () -> Unit = { invalidate() }
-
-    fun updateAnimation(dt: Float, config: SharkConfig, navigator: SharkNavigator) {
-        renderer.update(dt, config, navigator)
-    }
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
@@ -349,26 +291,14 @@ private class SharkView(
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-
-        canvas.save()
-
-        canvas.translate(
-            width / 2f,
-            height / 2f
-        )
-
-        canvas.rotate(angle)
-
-        val scale = min(
-            width,
-            height
-        ) / 180f
-
-        canvas.scale(scale, scale)
-
-        renderer.draw(canvas, 110f, phase)
-
-        canvas.restore()
+        // Explicitly erase previous positions on this window's own surface only.
+        canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
+        for (shark in sharks) {
+            canvas.save()
+            canvas.translate(shark.navigator.x, shark.navigator.y)
+            canvas.rotate(shark.navigator.angle)
+            shark.renderer.draw(canvas, 110f * shark.scale, shark.navigator.phase)
+            canvas.restore()
+        }
     }
 }
-

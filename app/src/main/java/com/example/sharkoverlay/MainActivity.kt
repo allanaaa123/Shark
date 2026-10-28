@@ -145,7 +145,7 @@ class MainActivity : Activity() {
         })
 
         root.addView(TextView(this).apply {
-            text = "寵物會在其他 App 上方游動，不會阻擋觸控。"
+            text = "寵物會在其他 App 上方游動。安全性畫面若限制操作，可由通知停止寵物。"
             textSize = 12f
             setPadding(0, dp(10), 0, 0)
         })

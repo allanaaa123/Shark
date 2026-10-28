@@ -153,3 +153,35 @@ bitmaps are allocated while swimming. Unit tests check tail sweep, head stabilit
 loop continuity, dorsal-tip response, mesh orientation and species-specific
 turning/velocity behavior. The final visual tuning and hardware rendering still
 need real-device validation.
+
+## Touch-through on Android 12 and later
+
+`FLAG_NOT_TOUCHABLE` alone does not guarantee delivery to another app. Android
+12+ treats `TYPE_APPLICATION_OVERLAY` as untrusted and uses the window's
+`LayoutParams.alpha` for obscuring opacity, including transparent image padding.
+The previous per-pet windows had alpha=1, and opacity from same-UID windows can
+combine as `1 - product(1 - alpha_i)` when they overlap.
+
+All pets now render into one non-focusable, non-touchable, translucent overlay
+window. On API 31+ its alpha is below both 0.8 and the value returned by
+`InputManager.getMaximumObscuringOpacityForTouch()`, with a 0.01 safety margin.
+On older Android it keeps alpha=1. Drawing more pets does not add more windows or
+increase their combined window opacity. Fish on modern Android look slightly
+more transparent as a consequence; sprite alpha alone would not fix input.
+
+Positions, heading and sizes are Canvas transforms rather than WindowManager
+moves. The surface is explicitly cleared before each frame. Navigation uses the
+laid-out overlay dimensions, with display metrics only as startup fallback.
+Starting/updating replaces the single window, stopping removes it and cancels
+the loop, and an empty pet list stops the service without leaving a transparent
+fullscreen overlay attached. No additional permissions or system setting changes
+are used.
+
+The platform's low-opacity exception does not override an app's own
+`filterTouchesWhenObscured` or sensitive-screen overlay restrictions. For those
+screens the existing notification Stop action removes the overlay. Real-device
+verification is required: ordinary-app taps/scrolls under a fish and its padding,
+after it moves away, overlapping 10 pets, restarting and stopping, portrait /
+landscape, plus a sensitive app with its own obscured-touch policy.
+
+Reference: https://developer.android.com/reference/android/view/WindowManager.LayoutParams#FLAG_NOT_TOUCHABLE
