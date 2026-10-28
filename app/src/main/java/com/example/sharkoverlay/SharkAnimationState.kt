@@ -9,8 +9,9 @@ class SharkAnimationState(initialTimeMs: Double = kotlin.random.Random.nextDoubl
 
     fun advance(dtSeconds: Float, speedPercent: Int, speedMultiplier: Float = 1f) {
         val cadence = (speedPercent / 100.0 * speedMultiplier).coerceIn(0.35, 2.4)
-        // Exact common multiple of the three packaged swim durations (3024, 1200, 1000ms).
-        swimTimeMs = (swimTimeMs + dtSeconds.coerceIn(0f, 0.08f) * 1000 * cadence) % 378_000.0
+        // Keep one monotonic Double clock; each clip applies its own duration modulo.
+        // No shared wrap can interrupt a species with a different loop duration.
+        swimTimeMs += dtSeconds.coerceIn(0f, 0.08f) * 1000 * cadence
     }
 
     fun frame(motion: SharkMotion, progress: Float, frameCount: Int, durationMs: Int): Int {

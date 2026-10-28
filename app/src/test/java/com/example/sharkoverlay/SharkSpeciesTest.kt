@@ -27,11 +27,12 @@ class SharkSpeciesTest {
     @Test fun differentLoopDurationsDoNotResetAtHammerheadBoundary() {
         val state = SharkAnimationState(3023.0)
         state.advance(0.04f, 100)
-        assertEquals(4, state.frame(SharkMotion.SWIM, 0f, 8, 1200))
-        val wrap = SharkAnimationState(377999.0)
-        wrap.advance(0.04f, 100)
-        assertEquals(0, wrap.frame(SharkMotion.SWIM, 0f, 8, 1200))
-        assertEquals(0, wrap.frame(SharkMotion.SWIM, 0f, 8, 1000))
-        assertEquals(0, wrap.frame(SharkMotion.SWIM, 0f, 72, 3024))
+        assertEquals(14, state.frame(SharkMotion.SWIM, 0f, 29, 1218))
+        val longRunning = SharkAnimationState(1_000_000_000.0)
+        longRunning.advance(0.04f, 100)
+        for ((frames, duration) in listOf(29 to 1218, 24 to 1008, 72 to 3024)) {
+            val expected = ((1_000_000_040.0 % duration) / duration * frames).toInt()
+            assertEquals(expected, longRunning.frame(SharkMotion.SWIM, 0f, frames, duration))
+        }
     }
 }

@@ -1,18 +1,36 @@
 {
   "swim": {
-    "frames": 8,
-    "durationMs": 1000,
+    "frames": 24,
+    "durationMs": 1008,
     "frameDurationsMs": [
-      125,
-      125,
-      125,
-      125,
-      125,
-      125,
-      125,
-      125
+      42,
+      42,
+      42,
+      42,
+      42,
+      42,
+      42,
+      42,
+      42,
+      42,
+      42,
+      42,
+      42,
+      42,
+      42,
+      42,
+      42,
+      42,
+      42,
+      42,
+      42,
+      42,
+      42,
+      42
     ],
     "frameSize": 192,
-    "columns": 8
+    "columns": 8,
+    "sourcePoses": 8,
+    "interpolation": "ffmpeg_motion_compensated"
   }
 }

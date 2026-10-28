@@ -100,11 +100,12 @@ data equality so identical-looking configurations remain independently removable
 
 The two user-approved concept animations are packaged in
 `assets/shark/whale_shark/` and `assets/shark/orca/`, each as a transparent source
-WebP plus an eight-frame atlas and manifest. They keep playing their swim cycle
+WebP plus a motion-interpolated atlas and manifest (29 whale shark frames,
+24 orca frames). They keep playing their swim cycle
 through navigation turns; only hammerheads currently have dedicated turn clips.
-The common clock wrap is the LCM of all three swim durations, so whale shark and
-orca loops do not reset abruptly at the hammerhead's 3024ms boundary. All five
-atlases together require 25.875 MiB of shared ARGB storage, excluding GPU copies.
+A monotonic Double animation clock applies modulo only per clip, so different
+loop lengths cannot interrupt each other. All five atlases together require
+31.5 MiB of shared ARGB storage, excluding GPU copies.
 
 Regenerate and check with:
 
@@ -113,7 +114,16 @@ python tools/prepare_species_assets.py /directory/with/approved/concept_webps
 python tools/check_species_assets.py
 ```
 
-The new clips remain eight-pose concept-quality art approved for this version,
-not newly authored 24fps anatomical animations. Device testing should cover
+The new clips derive from the approved eight-pose concept art. FFmpeg performs
+motion-compensated interpolation with real preceding/following cycle context,
+including alpha. Whale shark has 29 frames / 1218ms; orca has 24 frames / 1008ms.
+Both use 42ms frames (23.81fps), exactly matching the hammerhead timing. Swim
+cadence still follows each pet's actual speed. This adds intermediate motion,
+not new anatomical source poses. The conversion uses one fixed scale and pivot
+per clip to prevent rescaling flutter. All output frames must be unique, remain
+transparent and fit within the frame; the runtime memory check allows 34 MiB.
+The original 8-pose concept files are the generator inputs; the published WebPs
+and atlases are now the interpolated output. Regeneration additionally requires
+FFmpeg with RGBA-capable minterpolate. Device testing should cover
 mixed species, adding/canceling at the ten-pet limit, deleting identical configs,
 relaunching the Activity and restarting the Service.
