@@ -1,0 +1,7 @@
+{
+  "maxSlipPxPerSecond": 5.684341886080801e-9,
+  "maxBoneLengthErrorPx": 1.2789769243681803e-13,
+  "minPlantedFeet": 3,
+  "maxPlantedFeet": 6,
+  "frequencyHz": 4
+}

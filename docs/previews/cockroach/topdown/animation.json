@@ -1,0 +1,15 @@
+{
+  "fps": 24,
+  "frames": 48,
+  "durationMs": 2000,
+  "view": "orthographic_top_down",
+  "method": "textured_joint_rig_with_inverse_kinematics",
+  "sourceMotion": "qualitative reference to Mongeau et al. 2012 top-view recording; not motion capture",
+  "gait": {
+    "maxSlipPxPerSecond": 5.684341886080801e-09,
+    "maxBoneLengthErrorPx": 1.2789769243681803e-13,
+    "minPlantedFeet": 3,
+    "maxPlantedFeet": 6,
+    "frequencyHz": 4
+  }
+}
