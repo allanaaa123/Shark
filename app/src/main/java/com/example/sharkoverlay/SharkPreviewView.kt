@@ -215,7 +215,7 @@ class SharkPreviewView(context: Context) : View(context) {
             canvas.restore()
         }
 
-        postInvalidateDelayed(40L)
+        postInvalidateOnAnimation()
     }
 
     override fun onAttachedToWindow() {
@@ -237,4 +237,5 @@ class SharkPreviewView(context: Context) : View(context) {
         super.onDetachedFromWindow()
     }
 }
+
 

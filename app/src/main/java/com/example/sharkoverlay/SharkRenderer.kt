@@ -58,10 +58,11 @@ object SharkArt {
                             val columns = spec.getInt("columns")
                             // BitmapMesh takes a whole bitmap. Split once, share tiles across
                             // all pets, and release the source atlas to avoid doubling memory.
-                            val tiles = if (species == SharkSpecies.HAMMERHEAD) List(frameCount) { i ->
+                            val tileCount = if (species == SharkSpecies.HAMMERHEAD) frameCount else 1
+                            val tiles = List(tileCount) { i ->
                                 Bitmap.createBitmap(bitmap, i % columns * frameSize, i / columns * frameSize, frameSize, frameSize)
-                            } else emptyList()
-                            speciesClips[motion] = Clip(if (tiles.isEmpty()) bitmap else null, frameCount,
+                            }
+                            speciesClips[motion] = Clip(null, tileCount,
                                 spec.getInt("durationMs"), frameSize, columns, tiles)
                             if (tiles.isNotEmpty()) bitmap.recycle()
                         }
@@ -146,21 +147,27 @@ class SharkRenderer {
         target.set(-half, -half, half, half)
         if (blend < 1f) {
             val checkpoint = canvas.saveLayer(target, null)
-            SharkArt.clip(previousSpecies, previousMotion)?.let { drawFrame(canvas, it, previousFrame, 1f - blend) }
+            SharkArt.clip(previousSpecies, previousMotion)?.let { drawFrame(canvas, it, previousFrame, 1f - blend, previousSpecies) }
             paint.xfermode = add
-            drawFrame(canvas, clip, currentFrame, blend)
+            drawFrame(canvas, clip, currentFrame, blend, currentSpecies)
             paint.xfermode = null
             canvas.restoreToCount(checkpoint)
         } else {
-            drawFrame(canvas, clip, currentFrame, 1f)
+            drawFrame(canvas, clip, currentFrame, 1f, currentSpecies)
         }
         paint.alpha = 255
     }
 
-    private fun drawFrame(canvas: Canvas, clip: SharkArt.Clip, frame: Int, opacity: Float) {
+    private fun drawFrame(canvas: Canvas, clip: SharkArt.Clip, frame: Int, opacity: Float, species: SharkSpecies) {
         paint.alpha = (opacity * 255).toInt()
         if (clip.meshFrames.isNotEmpty()) {
-            HammerheadMotion.fill(mesh, target.width() / 2f, tailPhase, turnBend)
+            if (species == SharkSpecies.HAMMERHEAD) {
+                HammerheadMotion.fill(mesh, target.width() / 2f, tailPhase, turnBend)
+            } else {
+                val cycleMs = if (species == SharkSpecies.WHALE_SHARK) 1600.0 else 1400.0
+                SpeciesSwimMotion.fill(mesh, target.width() / 2f,
+                    timing.swimTimeMs / cycleMs * 2.0 * Math.PI, species)
+            }
             canvas.drawBitmapMesh(clip.meshFrames[frame], HammerheadMotion.COLUMNS,
                 HammerheadMotion.ROWS, mesh, 0, null, 0, paint)
             return
@@ -173,3 +180,4 @@ class SharkRenderer {
         canvas.drawBitmap(atlas, source, target, paint)
     }
 }
+

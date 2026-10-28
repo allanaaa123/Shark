@@ -16,7 +16,7 @@ import kotlin.random.Random
 class SharkService : Service() {
 
     private lateinit var wm: WindowManager
-    private val handler = Handler(Looper.getMainLooper())
+    private val choreographer by lazy { Choreographer.getInstance() }
     private val random = Random.Default
 
     private val sharks = mutableListOf<Shark>()
@@ -26,12 +26,12 @@ class SharkService : Service() {
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == Intent.ACTION_SCREEN_OFF) {
-                handler.removeCallbacks(loop)
+                choreographer.removeFrameCallback(loop)
                 lastTime = 0L
             } else if (intent?.action == Intent.ACTION_SCREEN_ON && running) {
-                handler.removeCallbacks(loop)
+                choreographer.removeFrameCallback(loop)
                 lastTime = 0L
-                handler.post(loop)
+                choreographer.postFrameCallback(loop)
             }
         }
     }
@@ -43,15 +43,15 @@ class SharkService : Service() {
         else registerReceiver(screenReceiver, filter)
     }
 
-    private val loop = object : Runnable {
-        override fun run() {
+    private val loop = object : Choreographer.FrameCallback {
+        override fun doFrame(frameTimeNanos: Long) {
             if (!running || !getSystemService(PowerManager::class.java).isInteractive) return
 
-            val now = SystemClock.uptimeMillis()
+            val now = frameTimeNanos
             val dt = if (lastTime == 0L) {
-                0.04f
+                0f
             } else {
-                ((now - lastTime) / 1000f)
+                ((now - lastTime) / 1_000_000_000f)
                     .coerceIn(0f, 0.08f)
             }
             lastTime = now
@@ -85,7 +85,7 @@ class SharkService : Service() {
             // One transparent surface; no per-pet WindowManager/input-region moves.
             view.invalidate()
 
-            handler.postDelayed(this, 40L)
+            choreographer.postFrameCallback(this)
         }
     }
 
@@ -241,15 +241,15 @@ class SharkService : Service() {
 
         lastTime = 0L
         running = true
-        handler.removeCallbacks(loop)
-        handler.post(loop)
+        choreographer.removeFrameCallback(loop)
+        choreographer.postFrameCallback(loop)
 
         return START_STICKY
     }
 
     private fun clearSharks() {
         running = false
-        handler.removeCallbacks(loop)
+        choreographer.removeFrameCallback(loop)
 
         overlayView?.let { view ->
             if (::wm.isInitialized) {
@@ -302,3 +302,4 @@ private class SharkView(context: Context, private val sharks: List<Shark>) : Vie
         }
     }
 }
+
