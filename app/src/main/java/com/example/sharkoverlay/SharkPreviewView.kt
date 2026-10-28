@@ -15,6 +15,12 @@ class SharkPreviewView(context: Context) : View(context) {
     private val renderers = mutableListOf<SharkRenderer>()
     private val effects = mutableListOf<SwimEffects>()
     private val effectsPainter = SwimEffectsPainter()
+    private val social = SharkSocialController()
+
+    fun applySocialMode(value: SocialMode) {
+        social.applyMode(value)
+        invalidate()
+    }
     private val artReady: () -> Unit = { invalidate() }
     private val random = Random.Default
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -52,6 +58,7 @@ class SharkPreviewView(context: Context) : View(context) {
         while (effects.size < configs.size) effects.add(SwimEffects().apply { applyStrength(effectsStrength) })
         while (effects.size > configs.size) effects.removeAt(effects.lastIndex)
         effects.forEach { it.clear() }
+        social.reset()
         invalidate()
     }
 
@@ -196,6 +203,13 @@ class SharkPreviewView(context: Context) : View(context) {
         if (w <= 0f || h <= 0f) return
 
         val detailFactor = SwimEffects.detailFor(configs.size)
+        social.beginFrame(configs.size)
+        configs.forEachIndexed { index, config ->
+            val nav = swimmers[index]
+            social.capture(index, nav.x, nav.y, nav.angle, 110f * config.size / 100f,
+                35f * config.speed / 100f * nav.speedMultiplier, nav.isReturning)
+        }
+        social.update(dt)
         configs.forEachIndexed { index, config ->
             val nav = swimmers.getOrNull(index)
                 ?: return@forEachIndexed
@@ -210,7 +224,9 @@ class SharkPreviewView(context: Context) : View(context) {
                 height = h,
                 speed = speed,
                 radius = radius,
-                species = config.species
+                species = config.species,
+                socialTurnRate = social.turnRate(index),
+                socialSpeedFactor = social.speedFactor(index)
             )
 
             renderers[index].update(dt, config, nav)
@@ -259,6 +275,7 @@ class SharkPreviewView(context: Context) : View(context) {
         super.onDetachedFromWindow()
     }
 }
+
 
 
 

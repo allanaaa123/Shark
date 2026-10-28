@@ -18,6 +18,7 @@ class SharkService : Service() {
     private lateinit var wm: WindowManager
     private val choreographer by lazy { Choreographer.getInstance() }
     private val random = Random.Default
+    private val social = SharkSocialController()
 
     private val sharks = mutableListOf<Shark>()
     private var running = false
@@ -25,7 +26,10 @@ class SharkService : Service() {
     private var overlayView: SharkView? = null
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == "$packageName.EFFECTS_CHANGED") {
+            if (intent?.action == "$packageName.SOCIAL_CHANGED") {
+                val prefs = getSharedPreferences("shark", MODE_PRIVATE)
+                social.applyMode(SocialMode.fromId(prefs.getString(SocialMode.PREFERENCE, null)))
+            } else if (intent?.action == "$packageName.EFFECTS_CHANGED") {
                 val prefs = getSharedPreferences("shark", MODE_PRIVATE)
                 val strength = EffectsStrength.fromId(prefs.getString(EffectsStrength.PREFERENCE, null))
                 sharks.forEach { it.effects.applyStrength(strength) }
@@ -46,6 +50,7 @@ class SharkService : Service() {
         val filter = IntentFilter(Intent.ACTION_SCREEN_OFF).apply {
             addAction(Intent.ACTION_SCREEN_ON)
             addAction("$packageName.EFFECTS_CHANGED")
+            addAction("$packageName.SOCIAL_CHANGED")
         }
         if (Build.VERSION.SDK_INT >= 33) registerReceiver(screenReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
         else registerReceiver(screenReceiver, filter)
@@ -70,7 +75,14 @@ class SharkService : Service() {
             val screenH = view.height.takeIf { it > 0 }?.toFloat() ?: metrics.heightPixels.toFloat()
 
             val detailFactor = SwimEffects.detailFor(sharks.size)
-            sharks.forEach { shark ->
+            social.beginFrame(sharks.size)
+            sharks.forEachIndexed { index, shark ->
+                val nav = shark.navigator
+                social.capture(index, nav.x, nav.y, nav.angle, 110f * shark.scale,
+                    65f * metrics.density * shark.config.speed / 100f * nav.speedMultiplier, nav.isReturning)
+            }
+            social.update(dt)
+            sharks.forEachIndexed { index, shark ->
                 val nav = shark.navigator
                 val config = shark.config
 
@@ -86,7 +98,9 @@ class SharkService : Service() {
                     height = screenH,
                     speed = speed,
                     radius = radius,
-                    species = config.species
+                    species = config.species,
+                    socialTurnRate = social.turnRate(index),
+                    socialSpeedFactor = social.speedFactor(index)
                 )
 
                 shark.renderer.update(dt, config, nav)
@@ -180,6 +194,7 @@ class SharkService : Service() {
         )
 
         val effectsStrength = EffectsStrength.fromId(prefs.getString(EffectsStrength.PREFERENCE, null))
+        social.applyMode(SocialMode.fromId(prefs.getString(SocialMode.PREFERENCE, null)))
 
         try {
             val array = JSONArray(
@@ -274,6 +289,7 @@ class SharkService : Service() {
         lastTime = 0L
 
         sharks.clear()
+        social.reset()
     }
 
     override fun onDestroy() {
@@ -319,6 +335,7 @@ private class SharkView(context: Context, private val sharks: List<Shark>) : Vie
         }
     }
 }
+
 
 
 

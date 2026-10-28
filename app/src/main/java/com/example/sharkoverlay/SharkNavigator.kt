@@ -36,7 +36,8 @@ class SharkNavigator(
     var phase = random.nextFloat() * (2f * PI.toFloat())
         private set
 
-    fun update(dtSeconds: Float, width: Float, height: Float, speed: Float, radius: Float, species: SharkSpecies = SharkSpecies.HAMMERHEAD) {
+    fun update(dtSeconds: Float, width: Float, height: Float, speed: Float, radius: Float, species: SharkSpecies = SharkSpecies.HAMMERHEAD,
+               socialTurnRate: Float = 0f, socialSpeedFactor: Float = 1f) {
         if (width <= 0f || height <= 0f) return
         val dt = dtSeconds.coerceIn(0f, 0.08f)
         angularVelocity = 0f
@@ -66,7 +67,8 @@ class SharkNavigator(
             speedTarget = 0.65f + random.nextFloat() * 0.8f
             speedSeconds = 2f + random.nextFloat() * 4f
         }
-        val desiredSpeed = speedTarget * if (mode == Mode.TURN && !agile) 0.85f else 1f
+        val desiredSpeed = speedTarget * (if (mode == Mode.TURN && !agile) 0.85f else 1f) *
+            (if (returning) 1f else socialSpeedFactor.coerceIn(0.85f, 1.15f))
         val maxChange = 0.22f * dt
         speedMultiplier += (desiredSpeed - speedMultiplier).coerceIn(-maxChange, maxChange)
         val v = (speed.coerceAtLeast(1f) * speedMultiplier).coerceAtMost(min(width, height) * 1.5f)
@@ -112,6 +114,11 @@ class SharkNavigator(
                 }
             }
         }
+        if (!returning && socialTurnRate != 0f) {
+            val rate = socialTurnRate.coerceIn(-35f, 35f)
+            angle = (angle + rate * dt + 360f) % 360f
+            angularVelocity += rate
+        }
         val heading = Math.toRadians(angle.toDouble())
         x += cos(heading).toFloat() * v * dt
         y += sin(heading).toFloat() * v * dt
@@ -128,3 +135,4 @@ class SharkNavigator(
     private fun bearing(tx: Float, ty: Float): Float = Math.toDegrees(atan2((ty - y).toDouble(), (tx - x).toDouble())).toFloat()
     private fun signedAngle(degrees: Float): Float = ((degrees % 360f) + 540f) % 360f - 180f
 }
+

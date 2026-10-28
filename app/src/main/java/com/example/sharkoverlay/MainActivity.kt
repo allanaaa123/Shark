@@ -106,6 +106,8 @@ class MainActivity : Activity() {
         preview = SharkPreviewView(this)
         val initialEffects = EffectsStrength.fromId(prefs.getString(EffectsStrength.PREFERENCE, null))
         preview.applyEffectsStrength(initialEffects)
+        val initialSocial = SocialMode.fromId(prefs.getString(SocialMode.PREFERENCE, null))
+        preview.applySocialMode(initialSocial)
         root.addView(
             preview,
             LinearLayout.LayoutParams(-1, dp(190))
@@ -136,6 +138,36 @@ class MainActivity : Activity() {
                     prefs.edit().putString(EffectsStrength.PREFERENCE, selected.id).apply()
                     preview.applyEffectsStrength(selected)
                     sendBroadcast(Intent("$packageName.EFFECTS_CHANGED").setPackage(packageName))
+                }
+            }
+        })
+
+        root.addView(TextView(this).apply {
+            text = "魚群互動"
+            textSize = 18f
+            setPadding(0, dp(16), 0, dp(4))
+        })
+        root.addView(TextView(this).apply {
+            text = "立即套用並保存。輕柔互動，仍會偶爾交錯重疊。"
+            textSize = 13f
+        })
+        root.addView(RadioGroup(this).apply {
+            orientation = RadioGroup.VERTICAL
+            SocialMode.entries.forEach { mode ->
+                addView(RadioButton(this@MainActivity).apply {
+                    id = View.generateViewId()
+                    text = "${mode.label}：${mode.description}"
+                    textSize = 14f
+                    tag = mode
+                    isChecked = mode == initialSocial
+                })
+            }
+            setOnCheckedChangeListener { group, checkedId ->
+                val selected = group.findViewById<RadioButton>(checkedId)?.tag as? SocialMode
+                if (selected != null) {
+                    prefs.edit().putString(SocialMode.PREFERENCE, selected.id).apply()
+                    preview.applySocialMode(selected)
+                    sendBroadcast(Intent("$packageName.SOCIAL_CHANGED").setPackage(packageName))
                 }
             }
         })
@@ -295,6 +327,7 @@ class MainActivity : Activity() {
         preview.setSharks(sharks.toList())
     }
 }
+
 
 
 
