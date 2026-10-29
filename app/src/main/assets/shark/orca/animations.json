@@ -1,0 +1,13 @@
+{
+  "swim": {
+    "frames": 1,
+    "durationMs": 1400,
+    "frameDurationsMs": [
+      1400
+    ],
+    "frameSize": 512,
+    "columns": 1,
+    "animation": "continuous_mesh",
+    "appearance": "realistic_color_v1"
+  }
+}

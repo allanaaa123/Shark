@@ -1,0 +1,13 @@
+{
+  "swim": {
+    "frames": 1,
+    "durationMs": 4000,
+    "frameDurationsMs": [
+      4000
+    ],
+    "frameSize": 512,
+    "columns": 1,
+    "animation": "boss_continuous_mesh",
+    "appearance": "realistic_color_v1"
+  }
+}

@@ -12,31 +12,78 @@ class SharkPreviewView(context: Context) : View(context) {
 
     private val configs = mutableListOf<SharkConfig>()
     private val swimmers = mutableListOf<SharkNavigator>()
+    private val renderers = mutableListOf<SharkRenderer>()
+    private val effects = mutableListOf<SwimEffects>()
+    private val effectsPainter = SwimEffectsPainter()
+    private val social = SharkSocialController()
+    private val bossAvoidance = BossAvoidance()
+
+    fun applySocialMode(value: SocialMode) {
+        social.applyMode(value)
+        invalidate()
+    }
+    fun startle() {
+        social.reset()
+        bossAvoidance.reset()
+        configs.indices.filter { !configs[it].species.isBoss }.forEach { swimmers[it].startle() }
+        invalidate()
+    }
+
+    fun stopStartle() { swimmers.forEach { it.clearStartle() } }
+
+    private val artReady: () -> Unit = { invalidate() }
     private val random = Random.Default
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
 
-    private var lastTime = 0L
+    private var effectsStrength = EffectsStrength.GENTLE
 
-    fun setSharks(items: List<SharkConfig>) {
-        configs.clear()
-        configs.addAll(items.map { it.copy() })
-
-        while (swimmers.size < configs.size) {
-            swimmers.add(
-                SharkNavigator(
-                    x = random.nextFloat() * width.coerceAtLeast(1),
-                    y = random.nextFloat() * height.coerceAtLeast(1),
-                    angle = random.nextFloat() * 360f
-                )
-            )
-        }
-
-        while (swimmers.size > configs.size) {
-            swimmers.removeAt(swimmers.lastIndex)
-        }
-
+    fun applyEffectsStrength(value: EffectsStrength) {
+        effectsStrength = value
+        effects.forEach { it.applyStrength(value) }
         invalidate()
     }
+
+    private var lastTime = 0L
+    private var needsInitialPlacement = false
+
+    fun setSharks(items: List<SharkConfig>) {
+        val existing = configs.indices.associate { i ->
+            configs[i].id to PreviewState(configs[i], swimmers[i], renderers[i], effects[i])
+        }
+        configs.clear(); swimmers.clear(); renderers.clear(); effects.clear()
+        for (item in BossRules.normalize(items)) {
+            val previous = existing[item.id]?.takeIf { it.config.species == item.species || (it.config.species.isBoss && item.species.isBoss) }
+            if(previous == null && (width <= 0 || height <= 0)) needsInitialPlacement = true
+            configs.add(item.copy())
+            swimmers.add(previous?.nav ?: SharkNavigator(
+                random.nextFloat()*width.coerceAtLeast(1),
+                random.nextFloat()*height.coerceAtLeast(1), random.nextFloat()*360f))
+            renderers.add(previous?.renderer ?: SharkRenderer())
+            val fx = previous?.effects ?: SwimEffects()
+            if (previous != null && previous.config.size != item.size) fx.clear()
+            fx.applyStrength(effectsStrength)
+            effects.add(fx)
+        }
+        social.reset()
+        bossAvoidance.reset()
+        invalidate()
+    }
+
+    fun resumePreview() { lastTime = 0L; invalidate() }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w,h,oldw,oldh)
+        if(needsInitialPlacement && w>0 && h>0) {
+            swimmers.forEach { nav ->
+                nav.x=w*(.15f+random.nextFloat()*.7f)
+                nav.y=h*(.15f+random.nextFloat()*.7f)
+            }
+            needsInitialPlacement=false
+        }
+    }
+
+    private data class PreviewState(val config: SharkConfig, val nav: SharkNavigator,
+        val renderer: SharkRenderer, val effects: SwimEffects)
 
     companion object {
 
@@ -158,7 +205,9 @@ class SharkPreviewView(context: Context) : View(context) {
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
 
-        canvas.drawColor(Color.rgb(18, 18, 18))
+        canvas.drawColor(Color.rgb(5, 37, 55))
+
+        if (!isShown || windowVisibility != VISIBLE) return
 
         val now = SystemClock.uptimeMillis()
 
@@ -176,22 +225,51 @@ class SharkPreviewView(context: Context) : View(context) {
 
         if (w <= 0f || h <= 0f) return
 
+        val detailFactor = SwimEffects.detailFor(configs.size)
+        bossAvoidance.beginFrame(configs.size)
+        configs.forEachIndexed { index, config ->
+            val nav=swimmers[index]
+            bossAvoidance.capture(index,nav.x,nav.y,nav.angle,110f*config.renderScale,
+                35f*config.motionSpeed*nav.speedMultiplier,config.species.isBoss,nav.isReturning || nav.isStartled)
+        }
+        bossAvoidance.update(dt)
+        social.beginFrame(configs.size)
+        configs.forEachIndexed { index, config ->
+            val nav = swimmers[index]
+            social.capture(index, nav.x, nav.y, nav.angle, 110f * config.renderScale,
+                35f * config.motionSpeed * nav.speedMultiplier, nav.isReturning || nav.isStartled ||
+                    config.species.isBoss || bossAvoidance.isYielding(index))
+        }
+        social.update(dt)
         configs.forEachIndexed { index, config ->
             val nav = swimmers.getOrNull(index)
                 ?: return@forEachIndexed
 
-            val scale = config.size / 100f
+            val scale = config.renderScale
             val radius = 65f * scale
-            val speed = 35f * config.speed / 100f
+            val speed = 35f * config.motionSpeed
 
             nav.update(
                 dtSeconds = dt,
                 width = w,
                 height = h,
                 speed = speed,
-                radius = radius
+                radius = radius,
+                species = config.species,
+                socialTurnRate = if(bossAvoidance.isYielding(index)) bossAvoidance.turnRate(index) else social.turnRate(index),
+                socialSpeedFactor = if(bossAvoidance.isYielding(index)) bossAvoidance.speedFactor(index) else social.speedFactor(index)
             )
 
+            renderers[index].update(dt, config, nav)
+            effects[index].update(dt, nav.x, nav.y, nav.angle, nav.angularVelocity, scale,
+                tailOffsetY = renderers[index].tailOffsetY(scale), detailFactor = detailFactor,
+                tailOffsetX = renderers[index].tailOffsetX(scale))
+        }
+
+        for (effect in effects) effectsPainter.draw(canvas, effect)
+        configs.forEachIndexed { index, config ->
+            val nav = swimmers[index]
+            val scale = config.renderScale
             canvas.save()
 
             canvas.translate(
@@ -202,20 +280,39 @@ class SharkPreviewView(context: Context) : View(context) {
             canvas.rotate(nav.angle)
             canvas.scale(scale, scale)
 
-            drawHammerhead(
-                canvas,
-                paint,
-                nav.phase
-            )
+            renderers[index].draw(canvas, 110f, nav.phase)
 
             canvas.restore()
         }
 
-        postInvalidateDelayed(40L)
+        postInvalidateOnAnimation()
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        SharkArt.observe(context, artReady)
+        lastTime = 0L
+        invalidate()
+    }
+
+    override fun onWindowVisibilityChanged(visibility: Int) {
+        super.onWindowVisibilityChanged(visibility)
+        if (visibility != VISIBLE) swimmers.forEach { it.clearStartle(immediate = true) }
+        lastTime = 0L
+        if (visibility == VISIBLE) invalidate()
     }
 
     override fun onDetachedFromWindow() {
+        SharkArt.removeObserver(artReady)
         lastTime = 0L
         super.onDetachedFromWindow()
     }
 }
+
+
+
+
+
+
+
+
