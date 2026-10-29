@@ -36,6 +36,8 @@ class PopulationTest {
         val navigators = List(50) { SharkNavigator(500f, 500f, it * 7f, Random(it)) }
         val effects = List(50) { SwimEffects(Random(it)) }
         val mesh = FloatArray(HammerheadMotion.VERTEX_FLOATS)
+        val rayMesh = FloatArray(RayMotion.VERTEX_FLOATS)
+        val scratch = FloatArray((RayMotion.COLUMNS+1)*2)
         repeat(360) { tick ->
             for (i in navigators.indices) {
                 val species = SharkSpecies.entries[i % SharkSpecies.entries.size]
@@ -44,7 +46,10 @@ class PopulationTest {
                 effects[i].update(1f/60, nav.x, nav.y, nav.angle, nav.angularVelocity, 1f,
                     detailFactor=SwimEffects.detailFor(50))
                 assertTrue(nav.x.isFinite() && nav.y.isFinite() && nav.angle.isFinite())
-                if (species != SharkSpecies.HAMMERHEAD) {
+                if (species.isRay) {
+                    RayMotion.fill(rayMesh,scratch,110f,tick*0.05,species,0.8f,0.5f)
+                    assertTrue(rayMesh.all { it.isFinite() })
+                } else if (species != SharkSpecies.HAMMERHEAD) {
                     SpeciesSwimMotion.fill(mesh, 96f, tick * 0.05, species, 0.8f, 0.5f)
                     assertTrue(mesh.all { it.isFinite() })
                 }

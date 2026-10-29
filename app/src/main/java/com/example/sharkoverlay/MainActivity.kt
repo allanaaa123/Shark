@@ -136,7 +136,7 @@ class MainActivity : Activity() {
 
     private fun page(content: LinearLayout): ScrollView = ScrollView(this).apply {
         isFillViewport = true; clipToPadding = false
-        addView(content,ScrollView.LayoutParams(-1,-2))
+        addView(content,FrameLayout.LayoutParams(-1,-2))
     }
 
     private fun card(title: String, subtitle: String? = null): LinearLayout = column(16).apply {

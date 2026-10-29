@@ -107,6 +107,34 @@ class MainActivityUiTest {
         assertEquals(150,second[0].size); assertEquals(75,second[0].speed)
     }
 
+    @Test fun bulkSizeGestureKeepsIndependentSpeedsAndSurvivesRecreation() {
+        val before=PetStore.load(context)
+        var controller=Robolectric.buildActivity(MainActivity::class.java).setup()
+        var root=controller.get().window.decorView; layout(root); idle()
+        root.findViewWithTag<Button>("tab_1").performClick(); layout(root)
+        root.findViewWithTag<View>("pet_${before[0].id}").performLongClick()
+        root.findViewWithTag<View>("pet_${before[1].id}").performClick()
+        button(root,"批次調整").performClick()
+        val dialog=dialogRoot(); layout(dialog)
+        val bar=dialog.findViewWithTag<SeekBar>("edit_size")
+        assertTrue(bar.width>0)
+        val now=android.os.SystemClock.uptimeMillis()
+        for(action in listOf(MotionEvent.ACTION_DOWN,MotionEvent.ACTION_UP)) {
+            val event=MotionEvent.obtain(now,now+20,action,bar.width*.75f,bar.height*.5f,0)
+            bar.dispatchTouchEvent(event); event.recycle()
+        }
+        button(dialog,"完成").performClick(); idle()
+        val after=PetStore.load(context)
+        assertTrue(after[0].size!=before[0].size)
+        assertEquals(after[0].size,after[1].size)
+        assertEquals(before.map { it.speed },after.map { it.speed })
+        assertEquals(before.drop(2),after.drop(2))
+        controller.recreate(); root=controller.get().window.decorView; layout(root); idle()
+        assertTrue(root.findViewWithTag<GridLayout>("pet_grid").isShown)
+        assertEquals(after,PetStore.load(context))
+        controller.pause().stop().destroy()
+    }
+
     @Test fun allFourLayoutStatesRenderWithAllFourteenSpeciesLoaded() {
         val controller=Robolectric.buildActivity(MainActivity::class.java).setup()
         val activity=controller.get(); val root=activity.window.decorView; layout(root)
