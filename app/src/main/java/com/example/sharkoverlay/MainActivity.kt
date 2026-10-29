@@ -628,7 +628,7 @@ class MainActivity : Activity() {
             toast("需保留 ${removed.size} 個名額才能全部復原"); return
         }
         if(!model.canRestore(removed)) {
-            toast("海洋霸主只能有一隻；請先移除目前霸主再復原"); return
+            toast("目前已有另一位霸主，無法復原先前的霸主"); return
         }
         val n=model.restore(removed)
         removed=emptyList(); undoBar.visibility=View.GONE; main.removeCallbacks(expireUndo)
