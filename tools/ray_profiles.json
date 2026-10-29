@@ -1,0 +1,67 @@
+[
+  {
+    "enum": "BLUE_SPOTTED_RAY",
+    "id": "blue_spotted_ray",
+    "pivot_x": 373.31679819616687,
+    "pivot_y": 256.1240135287486,
+    "span": 110.12401352874859,
+    "amplitude": 0.105,
+    "lag": 0.9,
+    "tail": 0.04054054054054054,
+    "bank": 0.055,
+    "tip_x": 43.0,
+    "tip_y": 217.5
+  },
+  {
+    "enum": "GOLDEN_RAY",
+    "id": "golden_ray",
+    "pivot_x": 374.8,
+    "pivot_y": 255.55555555555554,
+    "span": 122.22222222222223,
+    "amplitude": 0.1,
+    "lag": 0.85,
+    "tail": 0.07,
+    "bank": 0.055,
+    "tip_x": 41.0,
+    "tip_y": 203.0
+  },
+  {
+    "enum": "EAGLE_RAY",
+    "id": "eagle_ray",
+    "pivot_x": 388.0,
+    "pivot_y": 255.98125836680055,
+    "span": 158.4471218206158,
+    "amplitude": 0.14,
+    "lag": 0.3,
+    "tail": 0.025,
+    "bank": 0.07,
+    "tip_x": 41.0,
+    "tip_y": 211.0
+  },
+  {
+    "enum": "SILVER_RAY",
+    "id": "silver_ray",
+    "pivot_x": 374.8,
+    "pivot_y": 255.95739348370927,
+    "span": 120.75187969924811,
+    "amplitude": 0.075,
+    "lag": 1.05,
+    "tail": 0.05,
+    "bank": 0.05,
+    "tip_x": 41.0,
+    "tip_y": 214.0
+  },
+  {
+    "enum": "MANTA_RAY",
+    "id": "manta_ray",
+    "pivot_x": 339.6,
+    "pivot_y": 256.0444444444445,
+    "span": 174.6962962962963,
+    "amplitude": 0.135,
+    "lag": 0.25,
+    "tail": 0.015,
+    "bank": 0.075,
+    "tip_x": 42.0,
+    "tip_y": 253.0
+  }
+]

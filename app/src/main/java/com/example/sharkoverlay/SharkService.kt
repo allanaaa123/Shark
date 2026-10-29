@@ -41,7 +41,9 @@ class SharkService : Service() {
     private var overlayView: SharkView? = null
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == "$packageName.SHAKE_CHANGED") {
+            if (intent?.action == "$packageName.PETS_CHANGED") {
+                if (running) reloadPets()
+            } else if (intent?.action == "$packageName.SHAKE_CHANGED") {
                 val prefs = getSharedPreferences("shark", MODE_PRIVATE)
                 shakeEnabled = prefs.getBoolean(ShakeSensor.PREFERENCE, false)
                 if (!shakeEnabled) sharks.forEach { it.navigator.clearStartle() }
@@ -75,6 +77,7 @@ class SharkService : Service() {
             addAction("$packageName.EFFECTS_CHANGED")
             addAction("$packageName.SOCIAL_CHANGED")
             addAction("$packageName.SHAKE_CHANGED")
+            addAction("$packageName.PETS_CHANGED")
         }
         if (Build.VERSION.SDK_INT >= 33) registerReceiver(screenReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
         else registerReceiver(screenReceiver, filter)
@@ -129,7 +132,8 @@ class SharkService : Service() {
 
                 shark.renderer.update(dt, config, nav)
                 shark.effects.update(dt, nav.x, nav.y, nav.angle, nav.angularVelocity, shark.scale,
-                    tailOffsetY = shark.renderer.tailOffsetY(shark.scale), detailFactor = detailFactor)
+                    tailOffsetY = shark.renderer.tailOffsetY(shark.scale), detailFactor = detailFactor,
+                    tailOffsetX = shark.renderer.tailOffsetX(shark.scale))
             }
             // One transparent surface; no per-pet WindowManager/input-region moves.
             view.invalidate()
@@ -211,57 +215,7 @@ class SharkService : Service() {
 
         clearSharks()
 
-        val configs = mutableListOf<SharkConfig>()
-        val prefs = getSharedPreferences(
-            "shark",
-            MODE_PRIVATE
-        )
-
-        shakeEnabled = prefs.getBoolean(ShakeSensor.PREFERENCE, false)
-        val effectsStrength = EffectsStrength.fromId(prefs.getString(EffectsStrength.PREFERENCE, null))
-        social.applyMode(SocialMode.fromId(prefs.getString(SocialMode.PREFERENCE, null)))
-
-        try {
-            val array = JSONArray(
-                prefs.getString("sharks", "[]") ?: "[]"
-            )
-
-            for (i in 0 until SharkConfig.savedCount(array.length())) {
-                val obj = array.getJSONObject(i)
-
-                configs.add(
-                    SharkConfig.fromSaved(
-                        size = obj.optInt("size", 100),
-                        speed = obj.optInt("speed", 100),
-                        speciesId = obj.optString("species", "")
-                    )
-                )
-            }
-        } catch (_: Exception) {
-            // Invalid saved settings.
-        }
-
-        val metrics = resources.displayMetrics
-        val screenW = metrics.widthPixels
-        val screenH = metrics.heightPixels
-
-        configs.forEach { config ->
-            val scale = config.size / 100f * metrics.density
-            val radius = 64.8f * scale
-            val minX = radius.coerceAtMost(screenW * 0.45f)
-            val minY = radius.coerceAtMost(screenH * 0.45f)
-            sharks.add(Shark(
-                config = config,
-                scale = scale,
-                effects = SwimEffects().apply { applyStrength(effectsStrength) },
-                navigator = SharkNavigator(
-                    minX + random.nextFloat() * max(0f, screenW - 2f * minX),
-                    minY + random.nextFloat() * max(0f, screenH - 2f * minY),
-                    random.nextFloat() * 360f
-                )
-            ))
-        }
-
+        reloadPets()
         if (sharks.isEmpty()) {
             stopSelf()
             return START_NOT_STICKY
@@ -295,6 +249,7 @@ class SharkService : Service() {
 
         lastTime = 0L
         running = true
+        announceState(true)
         updateShakeListening()
         choreographer.removeFrameCallback(loop)
         choreographer.postFrameCallback(loop)
@@ -302,8 +257,52 @@ class SharkService : Service() {
         return START_STICKY
     }
 
+    private fun reloadPets() {
+        val prefs = getSharedPreferences("shark", MODE_PRIVATE)
+        val strength = EffectsStrength.fromId(prefs.getString(EffectsStrength.PREFERENCE, null))
+        shakeEnabled = prefs.getBoolean(ShakeSensor.PREFERENCE, false)
+        social.applyMode(SocialMode.fromId(prefs.getString(SocialMode.PREFERENCE, null)))
+        val configs = PetStore.load(this)
+        val existing = sharks.associateBy { it.config.id }
+        val metrics = resources.displayMetrics
+        val next = configs.map { config ->
+            val scale = config.size / 100f * metrics.density
+            val old = existing[config.id]
+            if (old != null && old.config.species == config.species) {
+                if (old.config.size != config.size) old.effects.clear()
+                old.config = config; old.scale = scale
+                old.effects.applyStrength(strength)
+                old
+            } else {
+                val radius = 64.8f * scale
+                val minX = radius.coerceAtMost(metrics.widthPixels*.45f)
+                val minY = radius.coerceAtMost(metrics.heightPixels*.45f)
+                Shark(config, scale, SharkNavigator(
+                    minX + random.nextFloat()*max(0f, metrics.widthPixels-2*minX),
+                    minY + random.nextFloat()*max(0f, metrics.heightPixels-2*minY),
+                    random.nextFloat()*360f
+                ), effects = SwimEffects().apply { applyStrength(strength) })
+            }
+        }
+        sharks.clear(); sharks.addAll(next)
+        social.reset()
+        if (running && sharks.isEmpty()) stopSelf()
+        updateShakeListening()
+    }
+
+    private fun announceState(active: Boolean) {
+        isActive = active
+        sendBroadcast(Intent("$packageName.STATE_CHANGED").setPackage(packageName))
+    }
+
+    companion object {
+        @Volatile var isActive = false
+            private set
+    }
+
     private fun clearSharks() {
         running = false
+        announceState(false)
         shakeSensor.stop()
         choreographer.removeFrameCallback(loop)
 
@@ -327,8 +326,8 @@ class SharkService : Service() {
 }
 
 private data class Shark(
-    val config: SharkConfig,
-    val scale: Float,
+    var config: SharkConfig,
+    var scale: Float,
     val navigator: SharkNavigator,
     val renderer: SharkRenderer = SharkRenderer(),
     val effects: SwimEffects = SwimEffects()
@@ -362,6 +361,7 @@ private class SharkView(context: Context, private val sharks: List<Shark>) : Vie
         }
     }
 }
+
 
 
 

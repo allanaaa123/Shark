@@ -19,7 +19,8 @@ import org.json.JSONObject
 object SharkArt {
     data class Clip(
         val bitmap: Bitmap?, val frames: Int, val durationMs: Int,
-        val frameSize: Int, val columns: Int, val meshFrames: List<Bitmap> = emptyList()
+        val frameSize: Int, val columns: Int, val meshFrames: List<Bitmap> = emptyList(),
+        val thumbnailBounds: Rect = Rect(0, 0, frameSize, frameSize)
     )
     private val executor = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
@@ -63,7 +64,7 @@ object SharkArt {
                                 Bitmap.createBitmap(bitmap, i % columns * frameSize, i / columns * frameSize, frameSize, frameSize)
                             }
                             speciesClips[motion] = Clip(null, tileCount,
-                                spec.getInt("durationMs"), frameSize, columns, tiles)
+                                spec.getInt("durationMs"), frameSize, columns, tiles, alphaBounds(tiles.first()))
                             if (tiles.none { it === bitmap }) bitmap.recycle()
                         }
                     }
@@ -92,6 +93,21 @@ object SharkArt {
     }
     fun clip(species: SharkSpecies, motion: SharkMotion): Clip? =
         clips?.get(species)?.get(motion) ?: clips?.get(species)?.get(SharkMotion.SWIM)
+
+    private fun alphaBounds(bitmap: Bitmap): Rect {
+        val pixels = IntArray(bitmap.width * bitmap.height)
+        bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+        var left = bitmap.width; var top = bitmap.height; var right = 0; var bottom = 0
+        for (y in 0 until bitmap.height) for (x in 0 until bitmap.width) {
+            if ((pixels[y*bitmap.width+x] ushr 24) > 20) {
+                left = minOf(left, x); top = minOf(top, y)
+                right = maxOf(right, x+1); bottom = maxOf(bottom, y+1)
+            }
+        }
+        return if (right > left && bottom > top) Rect((left-3).coerceAtLeast(0), (top-3).coerceAtLeast(0),
+            (right+3).coerceAtMost(bitmap.width), (bottom+3).coerceAtMost(bitmap.height))
+        else Rect(0, 0, bitmap.width, bitmap.height)
+    }
 }
 
 /** Each shark owns timing, but all sharks share decoded pixels. No per-frame allocations. */
@@ -109,11 +125,31 @@ class SharkRenderer {
     private var blend = 1f
     private val add = PorterDuffXfermode(PorterDuff.Mode.ADD)
     private val mesh = FloatArray(HammerheadMotion.VERTEX_FLOATS)
+    private val rayMesh = FloatArray(RayMotion.VERTEX_FLOATS)
+    private val rayScratch = FloatArray((RayMotion.COLUMNS+1)*2)
     private var tailPhase = 0.0
     private var turnBend = 0f
     private val turnPose = TurnPose()
+    private var initialized = false
+    private var drawingLength = 110f
+    private val tailPosition = FloatArray(2)
+
+    fun tailOffsetX(scale: Float): Float {
+        if(!currentSpecies.isRay) return -53f*scale
+        updateRayTail(scale)
+        return tailPosition[0]
+    }
+
+    private fun updateRayTail(scale: Float) {
+        RayMotion.tailPosition(tailPosition,110f*scale,timing.swimTimeMs/currentSpecies.swimCycleMs*2.0*Math.PI,
+            currentSpecies,turnPose.bodyBend,turnPose.tailBend)
+    }
 
     fun update(dt: Float, config: SharkConfig, navigator: SharkNavigator) {
+        if (!initialized) {
+            currentSpecies = config.species; previousSpecies = config.species
+            initialized = true
+        }
         timing.advance(dt, config.speed, navigator.speedMultiplier)
         turnPose.update(dt, navigator.angularVelocity)
         tailPhase = timing.swimTimeMs / 1008.0 * 2.0 * Math.PI
@@ -137,6 +173,7 @@ class SharkRenderer {
     }
 
     fun tailOffsetY(scale: Float): Float {
+        if(currentSpecies.isRay) { updateRayTail(scale); return tailPosition[1] }
         if (currentSpecies == SharkSpecies.HAMMERHEAD) return 0f
         val cycleMs = currentSpecies.swimCycleMs
         return SpeciesSwimMotion.tailY(110f * scale * 192f / 170f / 2f,
@@ -145,8 +182,10 @@ class SharkRenderer {
     }
 
     fun draw(canvas: Canvas, bodyLength: Float, fallbackPhase: Float) {
+        drawingLength = bodyLength
         val clip = SharkArt.clip(currentSpecies, currentMotion)
         if (clip == null) {
+            if(currentSpecies != SharkSpecies.HAMMERHEAD) return
             canvas.save()
             canvas.scale(bodyLength / 110f, bodyLength / 110f)
             SharkPreviewView.drawHammerhead(canvas, paint, fallbackPhase)
@@ -155,6 +194,9 @@ class SharkRenderer {
         }
         val half = bodyLength * 192f / 170f / 2f
         target.set(-half, -half, half, half)
+        if (currentSpecies.isRay || (blend < 1f && previousSpecies.isRay)) {
+            target.set(-bodyLength*2f, -bodyLength*1.3f, bodyLength, bodyLength*1.3f)
+        }
         if (blend < 1f) {
             val checkpoint = canvas.saveLayer(target, null)
             SharkArt.clip(previousSpecies, previousMotion)?.let { drawFrame(canvas, it, previousFrame, 1f - blend, previousSpecies) }
@@ -171,11 +213,19 @@ class SharkRenderer {
     private fun drawFrame(canvas: Canvas, clip: SharkArt.Clip, frame: Int, opacity: Float, species: SharkSpecies) {
         paint.alpha = (opacity * 255).toInt()
         if (clip.meshFrames.isNotEmpty()) {
-            if (species == SharkSpecies.HAMMERHEAD) {
-                HammerheadMotion.fill(mesh, target.width() / 2f, tailPhase, turnBend)
+            if (species.isRay) {
+                // target is a generous layer bound for a ray, not its texture rectangle.
+                RayMotion.fill(rayMesh, rayScratch, drawingLength,
+                    timing.swimTimeMs/species.swimCycleMs*2.0*Math.PI, species,
+                    turnPose.bodyBend, turnPose.tailBend)
+                canvas.drawBitmapMesh(clip.meshFrames[frame], RayMotion.COLUMNS, RayMotion.ROWS,
+                    rayMesh, 0, null, 0, paint)
+                return
+            } else if (species == SharkSpecies.HAMMERHEAD) {
+                HammerheadMotion.fill(mesh, drawingLength*192f/170f/2f, tailPhase, turnBend)
             } else {
                 val cycleMs = species.swimCycleMs
-                SpeciesSwimMotion.fill(mesh, target.width() / 2f,
+                SpeciesSwimMotion.fill(mesh, drawingLength*192f/170f/2f,
                     timing.swimTimeMs / cycleMs * 2.0 * Math.PI, species,
                     turnPose.bodyBend, turnPose.tailBend)
             }
@@ -191,6 +241,7 @@ class SharkRenderer {
         canvas.drawBitmap(atlas, source, target, paint)
     }
 }
+
 
 
 

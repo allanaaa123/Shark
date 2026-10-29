@@ -46,6 +46,7 @@ class SwimEffects(private val random: Random = Random.Default) {
     private var lastY = 0f
     private var lastAngle = 0f
     private var lastTailOffset = 0f
+    private var lastTailOffsetX = 0f
     var emittedBubbles = 0L
         private set
 
@@ -58,7 +59,8 @@ class SwimEffects(private val random: Random = Random.Default) {
     }
 
     fun update(dtSeconds: Float, x: Float, y: Float, angle: Float,
-               angularVelocity: Float, bodyScale: Float, emitting: Boolean = true, tailOffsetY: Float = 0f, detailFactor: Float = 1f) {
+               angularVelocity: Float, bodyScale: Float, emitting: Boolean = true, tailOffsetY: Float = 0f, detailFactor: Float = 1f,
+               tailOffsetX: Float = -53f*bodyScale) {
         val dt = dtSeconds.coerceIn(0f, 0.08f)
         if (dt <= 0f || strength == EffectsStrength.OFF) return
         val scale = bodyScale.coerceAtLeast(0.01f)
@@ -76,13 +78,14 @@ class SwimEffects(private val random: Random = Random.Default) {
         if (!initialized) {
             lastX = x; lastY = y; lastAngle = angle
             lastTailOffset = tailOffsetY
+            lastTailOffsetX = tailOffsetX
             initialized = true
         }
         val radians = Math.toRadians(angle.toDouble())
         val c = cos(radians).toFloat()
         val s = sin(radians).toFloat()
-        val tailX = x - 53f * scale * c - s * tailOffsetY
-        val tailY = y - 53f * scale * s + c * tailOffsetY
+        val tailX = x + tailOffsetX*c - s * tailOffsetY
+        val tailY = y + tailOffsetX*s + c * tailOffsetY
         if (emitting) {
             // Sample the moving tail at a fixed rate, independently of display FPS.
             trailClock += dt
@@ -94,8 +97,9 @@ class SwimEffects(private val random: Random = Random.Default) {
                 val tc = cos(a).toFloat(); val ts = sin(a).toFloat()
                 val p = trails[nextTrail]
                 val offset = lastTailOffset + (tailOffsetY - lastTailOffset) * f
-                p.x = lastX + (x - lastX) * f - 53f * scale * tc - ts * offset
-                p.y = lastY + (y - lastY) * f - 53f * scale * ts + tc * offset
+                val offsetX = lastTailOffsetX + (tailOffsetX-lastTailOffsetX)*f
+                p.x = lastX + (x - lastX) * f + offsetX * tc - ts * offset
+                p.y = lastY + (y - lastY) * f + offsetX * ts + tc * offset
                 p.nx = -ts; p.ny = tc; p.scale = scale; p.age = trailClock
                 nextTrail = (nextTrail + 1) % trails.size
             }
@@ -132,6 +136,7 @@ class SwimEffects(private val random: Random = Random.Default) {
         }
         lastX = x; lastY = y; lastAngle = angle
         lastTailOffset = tailOffsetY
+        lastTailOffsetX = tailOffsetX
     }
 
     companion object {
@@ -143,5 +148,6 @@ class SwimEffects(private val random: Random = Random.Default) {
         private const val TRAIL_STEP = 1f / 30f
     }
 }
+
 
 

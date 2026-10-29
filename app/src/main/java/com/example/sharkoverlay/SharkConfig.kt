@@ -12,7 +12,15 @@ enum class SharkSpecies(
     SHORTFIN_MAKO("shortfin_mako", "尖吻鯖鯊", "shortfin_mako", 1100.0, 0.13f),
     THRESHER("thresher", "長尾鯊", "thresher", 1900.0, 0.20f),
     ZEBRA("zebra", "豹紋鯊", "zebra", 2100.0, 0.17f),
-    OCEANIC_WHITETIP("oceanic_whitetip", "遠洋白鰭鯊", "oceanic_whitetip", 1800.0, 0.11f);
+    OCEANIC_WHITETIP("oceanic_whitetip", "遠洋白鰭鯊", "oceanic_whitetip", 1800.0, 0.11f),
+    BLUE_SPOTTED_RAY("blue_spotted_ray", "深海藍點魟魚", "blue_spotted_ray", 2000.0),
+    GOLDEN_RAY("golden_ray", "暖金藍點魟", "golden_ray", 2000.0),
+    EAGLE_RAY("eagle_ray", "黑金星斑鷹魟", "eagle_ray", 2000.0),
+    SILVER_RAY("silver_ray", "銀灰鑽石魟", "silver_ray", 2000.0),
+    MANTA_RAY("manta_ray", "深藍蝠鱝", "manta_ray", 4000.0);
+
+    val isRay: Boolean get() = this == BLUE_SPOTTED_RAY || this == GOLDEN_RAY ||
+        this == EAGLE_RAY || this == SILVER_RAY || this == MANTA_RAY
 
     companion object {
         fun fromId(id: String?): SharkSpecies = entries.firstOrNull { it.id == id } ?: HAMMERHEAD
@@ -22,7 +30,8 @@ enum class SharkSpecies(
 data class SharkConfig(
     var size: Int = 100,
     var speed: Int = 100,
-    val species: SharkSpecies = SharkSpecies.HAMMERHEAD
+    val species: SharkSpecies = SharkSpecies.HAMMERHEAD,
+    val id: String = java.util.UUID.randomUUID().toString()
 ) {
     companion object {
         const val MAX_PETS = 50
@@ -30,7 +39,9 @@ data class SharkConfig(
         fun canAdd(count: Int): Boolean = count in 0 until MAX_PETS
 
         /** Legacy preferences without a species remain hammerheads. */
-        fun fromSaved(size: Int = 100, speed: Int = 100, speciesId: String? = null) =
-            SharkConfig(size.coerceIn(30, 200), speed.coerceIn(20, 200), SharkSpecies.fromId(speciesId))
+        fun fromSaved(size: Int = 100, speed: Int = 100, speciesId: String? = null, id: String? = null) =
+            SharkConfig(size.coerceIn(30, 200), speed.coerceIn(20, 200), SharkSpecies.fromId(speciesId),
+                id?.takeIf { it.isNotBlank() } ?: java.util.UUID.randomUUID().toString())
     }
 }
+

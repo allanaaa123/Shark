@@ -42,33 +42,45 @@ class SharkPreviewView(context: Context) : View(context) {
     }
 
     private var lastTime = 0L
+    private var needsInitialPlacement = false
 
     fun setSharks(items: List<SharkConfig>) {
-        configs.clear()
-        configs.addAll(items.map { it.copy() })
-
-        while (swimmers.size < configs.size) {
-            swimmers.add(
-                SharkNavigator(
-                    x = random.nextFloat() * width.coerceAtLeast(1),
-                    y = random.nextFloat() * height.coerceAtLeast(1),
-                    angle = random.nextFloat() * 360f
-                )
-            )
+        val existing = configs.indices.associate { i ->
+            configs[i].id to PreviewState(configs[i], swimmers[i], renderers[i], effects[i])
         }
-
-        while (swimmers.size > configs.size) {
-            swimmers.removeAt(swimmers.lastIndex)
+        configs.clear(); swimmers.clear(); renderers.clear(); effects.clear()
+        for (item in items.take(SharkConfig.MAX_PETS)) {
+            val previous = existing[item.id]?.takeIf { it.config.species == item.species }
+            if(previous == null && (width <= 0 || height <= 0)) needsInitialPlacement = true
+            configs.add(item.copy())
+            swimmers.add(previous?.nav ?: SharkNavigator(
+                random.nextFloat()*width.coerceAtLeast(1),
+                random.nextFloat()*height.coerceAtLeast(1), random.nextFloat()*360f))
+            renderers.add(previous?.renderer ?: SharkRenderer())
+            val fx = previous?.effects ?: SwimEffects()
+            if (previous != null && previous.config.size != item.size) fx.clear()
+            fx.applyStrength(effectsStrength)
+            effects.add(fx)
         }
-
-        while (renderers.size < configs.size) renderers.add(SharkRenderer())
-        while (renderers.size > configs.size) renderers.removeAt(renderers.lastIndex)
-        while (effects.size < configs.size) effects.add(SwimEffects().apply { applyStrength(effectsStrength) })
-        while (effects.size > configs.size) effects.removeAt(effects.lastIndex)
-        effects.forEach { it.clear() }
         social.reset()
         invalidate()
     }
+
+    fun resumePreview() { lastTime = 0L; invalidate() }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w,h,oldw,oldh)
+        if(needsInitialPlacement && w>0 && h>0) {
+            swimmers.forEach { nav ->
+                nav.x=w*(.15f+random.nextFloat()*.7f)
+                nav.y=h*(.15f+random.nextFloat()*.7f)
+            }
+            needsInitialPlacement=false
+        }
+    }
+
+    private data class PreviewState(val config: SharkConfig, val nav: SharkNavigator,
+        val renderer: SharkRenderer, val effects: SwimEffects)
 
     companion object {
 
@@ -190,7 +202,7 @@ class SharkPreviewView(context: Context) : View(context) {
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
 
-        canvas.drawColor(Color.rgb(18, 18, 18))
+        canvas.drawColor(Color.rgb(5, 37, 55))
 
         if (!isShown || windowVisibility != VISIBLE) return
 
@@ -239,7 +251,8 @@ class SharkPreviewView(context: Context) : View(context) {
 
             renderers[index].update(dt, config, nav)
             effects[index].update(dt, nav.x, nav.y, nav.angle, nav.angularVelocity, scale,
-                tailOffsetY = renderers[index].tailOffsetY(scale), detailFactor = detailFactor)
+                tailOffsetY = renderers[index].tailOffsetY(scale), detailFactor = detailFactor,
+                tailOffsetX = renderers[index].tailOffsetX(scale))
         }
 
         for (effect in effects) effectsPainter.draw(canvas, effect)
@@ -284,6 +297,7 @@ class SharkPreviewView(context: Context) : View(context) {
         super.onDetachedFromWindow()
     }
 }
+
 
 
 

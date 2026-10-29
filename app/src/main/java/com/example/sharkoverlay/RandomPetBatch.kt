@@ -8,15 +8,15 @@ object RandomPetBatch {
         (SharkConfig.MAX_PETS - existingCount.coerceAtLeast(0)).coerceAtLeast(0)
 
     fun generate(count: Int, existingCount: Int, random: Random = Random.Default,
-                 variation: BatchVariation = BatchVariation.FIXED): List<SharkConfig> {
+                 variation: BatchVariation = BatchVariation.FIXED, species: SharkSpecies? = null): List<SharkConfig> {
         require(existingCount in 0..SharkConfig.MAX_PETS)
         require(count in 1..remainingSlots(existingCount))
         return List(count) {
-            val species = SharkSpecies.entries[random.nextInt(SharkSpecies.entries.size)]
+            val selected = species ?: SharkSpecies.entries[random.nextInt(SharkSpecies.entries.size)]
             if (variation == BatchVariation.NORMAL) {
                 SharkConfig(size = normalValue(random, 25.0, 30, 200),
-                    speed = normalValue(random, 20.0, 20, 200), species = species)
-            } else SharkConfig(species = species)
+                    speed = normalValue(random, 20.0, 20, 200), species = selected)
+            } else SharkConfig(species = selected)
         }
     }
 
@@ -33,3 +33,4 @@ object RandomPetBatch {
         return 100
     }
 }
+

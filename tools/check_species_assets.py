@@ -6,7 +6,7 @@ from PIL import Image
 
 root = Path(__file__).resolve().parents[1] / 'app/src/main/assets/shark'
 expected = {'hammerhead', 'whale_shark', 'orca', 'great_white', 'tiger',
-            'shortfin_mako', 'thresher', 'zebra', 'oceanic_whitetip'}
+            'shortfin_mako', 'thresher', 'zebra', 'oceanic_whitetip', 'blue_spotted_ray', 'golden_ray', 'eagle_ray', 'silver_ray', 'manta_ray'}
 selected = set(sys.argv[1:]) if len(sys.argv) > 1 else expected
 assert selected <= expected
 total = 0
@@ -31,5 +31,6 @@ for species in sorted(selected):
             assert box and 0 < box[0] < box[2] < size and 0 < box[1] < box[3] < size
         assert len(hashes) == frames, (species, name, 'duplicate frames')
     print(species, 'transparent aligned assets OK')
-assert total < 34 * 1024 * 1024
+assert total < 40 * 1024 * 1024
 print('Checked decoded source pixels:', round(total / 1024**2, 2), 'MiB')
+

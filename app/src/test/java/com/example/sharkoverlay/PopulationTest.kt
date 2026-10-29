@@ -13,7 +13,7 @@ class PopulationTest {
         assertTrue(SharkConfig.canAdd(49))
         assertFalse(SharkConfig.canAdd(50))
         assertFalse(SharkConfig.canAdd(51))
-        val saved = List(50) { SharkConfig.fromSaved(speciesId = SharkSpecies.entries[it % 9].id) }
+        val saved = List(50) { SharkConfig.fromSaved(speciesId = SharkSpecies.entries[it % SharkSpecies.entries.size].id) }
         assertEquals(50, saved.take(SharkConfig.savedCount(saved.size)).size)
         assertEquals(SharkSpecies.entries.toSet(), saved.map { it.species }.toSet())
     }
@@ -53,3 +53,4 @@ class PopulationTest {
         }
     }
 }
+

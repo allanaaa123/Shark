@@ -11,7 +11,7 @@ class SharkSpeciesTest {
     }
 
     @Test fun everySpeciesHasAStableUniqueIdAndRetainsSettings() {
-        assertEquals(9, SharkSpecies.entries.map { it.id }.toSet().size)
+        assertEquals(14, SharkSpecies.entries.map { it.id }.toSet().size)
         for (species in SharkSpecies.entries) {
             val saved = SharkConfig.fromSaved(150, 75, species.id)
             assertEquals(species, saved.species)
@@ -36,4 +36,5 @@ class SharkSpeciesTest {
         }
     }
 }
+
 

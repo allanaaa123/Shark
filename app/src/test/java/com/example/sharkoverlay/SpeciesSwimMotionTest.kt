@@ -11,7 +11,7 @@ class SpeciesSwimMotionTest {
         }
 
     @Test fun loopPositionAndVelocityAreContinuous() {
-        for (species in SharkSpecies.entries.filter { it != SharkSpecies.HAMMERHEAD }) {
+        for (species in SharkSpecies.entries.filter { it != SharkSpecies.HAMMERHEAD && !it.isRay }) {
             val start = mesh(0.0, species)
             val end = mesh(2 * PI, species)
             val before = mesh(2 * PI - 0.001, species)
@@ -25,7 +25,7 @@ class SpeciesSwimMotionTest {
 
     @Test fun headStaysFixedAndMeshNeverFolds() {
         val stride = (SpeciesSwimMotion.COLUMNS + 1) * 2
-        for (species in SharkSpecies.entries.filter { it != SharkSpecies.HAMMERHEAD }) {
+        for (species in SharkSpecies.entries.filter { it != SharkSpecies.HAMMERHEAD && !it.isRay }) {
             for (tick in 0..120) {
                 val vertices = mesh(tick * 2 * PI / 120, species)
                 assertTrue(vertices.all { it.isFinite() })
@@ -48,4 +48,5 @@ class SpeciesSwimMotionTest {
         }
     }
 }
+
 
