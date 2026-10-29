@@ -30,6 +30,11 @@ for species in sorted(selected):
             assert alpha.getextrema()[0] == 0 and alpha.getextrema()[1] >= 250
             assert box and 0 < box[0] < box[2] < size and 0 < box[1] < box[3] < size
         assert len(hashes) == frames, (species, name, 'duplicate frames')
+    if not species.endswith('_ray'):
+        assert set(manifest) == {'swim'}
+        assert manifest['swim']['appearance'] == 'realistic_color_v1'
+        assert manifest['swim']['frames'] == 1 and manifest['swim']['frameSize'] == 512
+        assert {p.name for p in (root / species).glob('*.webp')} == {'swim_atlas.webp'}
     print(species, 'transparent aligned assets OK')
 assert total < 40 * 1024 * 1024
 print('Checked decoded source pixels:', round(total / 1024**2, 2), 'MiB')

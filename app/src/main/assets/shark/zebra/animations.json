@@ -5,8 +5,9 @@
     "frameDurationsMs": [
       2100
     ],
-    "frameSize": 256,
+    "frameSize": 512,
     "columns": 1,
-    "animation": "continuous_mesh"
+    "animation": "continuous_mesh",
+    "appearance": "realistic_color_v1"
   }
 }

@@ -27,6 +27,11 @@ jobs:
         with:
           gradle-version: '8.9'
 
+      - name: Check transparent species assets
+        run: |
+          python3 -m pip install --quiet Pillow
+          python3 tools/check_species_assets.py
+
       - name: Build APK
         run: gradle testDebugUnitTest lintDebug assembleDebug --stacktrace
 

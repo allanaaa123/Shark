@@ -15,7 +15,7 @@ import android.util.Log
 import java.util.concurrent.Executors
 import org.json.JSONObject
 
-/** One process-wide immutable atlas set: approximately 32 MiB, even for ten sharks. */
+/** One process-wide immutable texture set: 14 MiB, including all sharks, orca and rays. */
 object SharkArt {
     data class Clip(
         val bitmap: Bitmap?, val frames: Int, val durationMs: Int,
@@ -157,7 +157,7 @@ class SharkRenderer {
             (navigator.angularVelocity / 220f).coerceIn(-1f, 1f) else 0f
         val maxBendChange = dt.coerceIn(0f, 0.08f) * 6f
         turnBend += (targetBend - turnBend).coerceIn(-maxBendChange, maxBendChange)
-        // The two approved concept clips are swim cycles, including during path turns.
+        // Shared color poses deform continuously, including during path turns.
         val motion = if (config.species == SharkSpecies.HAMMERHEAD) navigator.motion else SharkMotion.SWIM
         if (motion != currentMotion || config.species != currentSpecies) {
             previousSpecies = currentSpecies
@@ -184,14 +184,8 @@ class SharkRenderer {
     fun draw(canvas: Canvas, bodyLength: Float, fallbackPhase: Float) {
         drawingLength = bodyLength
         val clip = SharkArt.clip(currentSpecies, currentMotion)
-        if (clip == null) {
-            if(currentSpecies != SharkSpecies.HAMMERHEAD) return
-            canvas.save()
-            canvas.scale(bodyLength / 110f, bodyLength / 110f)
-            SharkPreviewView.drawHammerhead(canvas, paint, fallbackPhase)
-            canvas.restore()
-            return
-        }
+        // Wait for the approved art instead of flashing the legacy gray placeholder.
+        if (clip == null) return
         val half = bodyLength * 192f / 170f / 2f
         target.set(-half, -half, half, half)
         if (currentSpecies.isRay || (blend < 1f && previousSpecies.isRay)) {

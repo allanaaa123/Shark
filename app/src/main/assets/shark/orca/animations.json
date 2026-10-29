@@ -1,36 +1,13 @@
 {
   "swim": {
-    "frames": 24,
-    "durationMs": 1008,
+    "frames": 1,
+    "durationMs": 1400,
     "frameDurationsMs": [
-      42,
-      42,
-      42,
-      42,
-      42,
-      42,
-      42,
-      42,
-      42,
-      42,
-      42,
-      42,
-      42,
-      42,
-      42,
-      42,
-      42,
-      42,
-      42,
-      42,
-      42,
-      42,
-      42,
-      42
+      1400
     ],
-    "frameSize": 192,
-    "columns": 8,
-    "sourcePoses": 8,
-    "interpolation": "ffmpeg_motion_compensated"
+    "frameSize": 512,
+    "columns": 1,
+    "animation": "continuous_mesh",
+    "appearance": "realistic_color_v1"
   }
 }

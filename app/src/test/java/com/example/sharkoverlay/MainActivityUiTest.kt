@@ -145,6 +145,14 @@ class MainActivityUiTest {
             if(!ready.get()) { idle(); Thread.sleep(10) }
         }
         assertTrue("All 14 species must decode, including all five ray assets",ready.get())
+        SharkSpecies.entries.filter { !it.isRay }.forEach { species ->
+            val swim=SharkArt.clip(species,SharkMotion.SWIM)!!
+            assertEquals(1,swim.frames)
+            assertEquals(512,swim.meshFrames.single().width)
+            // Both turning directions must use the approved color pose, never old grayscale frames.
+            assertSame(swim,SharkArt.clip(species,SharkMotion.TURN_LEFT))
+            assertSame(swim,SharkArt.clip(species,SharkMotion.TURN_RIGHT))
+        }
         SharkArt.removeObserver(observer)
         val folder=File("build/reports/ui-preview").apply { mkdirs() }
         fun screenshot(name: String,view: View=root) {
