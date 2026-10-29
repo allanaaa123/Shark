@@ -61,7 +61,7 @@ class SharkStartleTest {
         navs.forEach { it.startle() }
         repeat(1500) {
             navs.forEachIndexed { i,nav ->
-                nav.update(1f/60,1080f,1920f,150f,50f,SharkSpecies.entries[i%9])
+                nav.update(1f/60,1080f,1920f,150f,50f,SharkSpecies.entries[i%SharkSpecies.entries.size])
                 assertTrue(nav.x.isFinite() && nav.y.isFinite() && nav.angle.isFinite())
                 if(nav.x in 25f..1055f && nav.y in 25f..1895f) recovered[i]=true
             }

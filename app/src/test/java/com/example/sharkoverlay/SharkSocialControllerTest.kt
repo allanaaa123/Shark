@@ -213,7 +213,7 @@ class SharkSocialControllerTest {
                     assertTrue(social.speedFactor(i) in 0.849f..1.151f)
                     val j=social.partnerIndex(i)
                     if(j>=0) assertEquals(i,social.partnerIndex(j))
-                    n.update(1f/60,1080f,1920f,150f,50f,SharkSpecies.entries[i%9],
+                    n.update(1f/60,1080f,1920f,150f,50f,SharkSpecies.entries[i%SharkSpecies.entries.size],
                         social.turnRate(i),social.speedFactor(i))
                     assertTrue(n.x.isFinite() && n.y.isFinite() && n.angle.isFinite())
                     assertTrue(hypot(n.x-x,n.y-y)<5.5f)

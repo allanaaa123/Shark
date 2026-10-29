@@ -520,7 +520,7 @@ class MainActivity : Activity() {
             val bar=SeekBar(this).apply {
                 max=maximum-minimum; progress=(if(uniform) values.first() else 100)-minimum
                 contentDescription=title; tag=if(title=="大小") "edit_size" else "edit_speed"
-                minHeight=dp(48); OceanUi.tintSeekBar(this)
+                minimumHeight=dp(48); OceanUi.tintSeekBar(this)
             }
             bar.setOnSeekBarChangeListener(object: SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
@@ -594,7 +594,8 @@ class MainActivity : Activity() {
         panel.addView(heading); panel.addView(gap(8))
         val scroll=LimitedScrollView(this,(resources.displayMetrics.heightPixels*.57f).toInt())
         scroll.addView(content)
-        panel.addView(scroll,full()); panel.addView(gap(16)); panel.addView(footer,full())
+        panel.addView(scroll,LinearLayout.LayoutParams(-1,-2,1f))
+        panel.addView(gap(16)); panel.addView(footer,full())
         dialog.setContentView(panel)
         dialog.setOnDismissListener { commitChanges(); if(sheet==dialog) sheet=null }
         sheet=dialog
