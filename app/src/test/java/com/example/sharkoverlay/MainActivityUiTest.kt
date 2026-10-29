@@ -135,7 +135,54 @@ class MainActivityUiTest {
         controller.pause().stop().destroy()
     }
 
-    @Test fun allFourLayoutStatesRenderWithAllFourteenSpeciesLoaded() {
+    @Test fun bossPickerReplacesCancelsRemovesAndRestoresOneSharedSlot() {
+        val before=PetStore.load(context)
+        val controller=Robolectric.buildActivity(MainActivity::class.java).setup()
+        var root=controller.get().window.decorView; layout(root); idle()
+        fun open() { root.findViewWithTag<Button>("boss_picker").performClick(); layout(dialogRoot()) }
+        fun select(species: SharkSpecies) {
+            dialogRoot().findViewWithTag<RadioButton>("boss_${species.id}").performClick()
+            button(dialogRoot(),"套用").performClick(); idle()
+        }
+        open(); select(SharkSpecies.DUNKLEOSTEUS)
+        val id=PetStore.load(context).single { it.species.isBoss }.id
+        for(species in listOf(SharkSpecies.GIANT_GROUPER,SharkSpecies.GIANT_SQUID)) {
+            open(); select(species)
+            val saved=PetStore.load(context)
+            assertEquals(before.size+1,saved.size)
+            assertEquals(species,saved.single { it.species.isBoss }.species)
+            assertEquals(id,saved.single { it.species.isBoss }.id)
+            assertEquals(before,saved.filter { !it.species.isBoss })
+        }
+        open(); dialogRoot().findViewWithTag<RadioButton>("boss_none").performClick()
+        button(dialogRoot(),"取消").performClick(); idle()
+        assertEquals(SharkSpecies.GIANT_SQUID,PetStore.load(context).single { it.species.isBoss }.species)
+        open(); dialogRoot().findViewWithTag<RadioButton>("boss_none").performClick()
+        button(dialogRoot(),"套用").performClick(); idle()
+        assertEquals(before,PetStore.load(context))
+        button(root,"復原").performClick(); idle()
+        assertEquals(1,PetStore.load(context).count { it.species.isBoss })
+        controller.recreate(); root=controller.get().window.decorView; layout(root); idle()
+        assertEquals(1,PetStore.load(context).count { it.species.isBoss })
+        controller.pause().stop().destroy()
+    }
+
+    @Test fun fullPopulationCanStillSwitchTheBoss() {
+        val regular=List(49) { SharkConfig() }
+        PetStore.save(context,regular+SharkConfig(species=SharkSpecies.DUNKLEOSTEUS))
+        val controller=Robolectric.buildActivity(MainActivity::class.java).setup()
+        val root=controller.get().window.decorView; layout(root); idle()
+        root.findViewWithTag<Button>("boss_picker").performClick(); layout(dialogRoot())
+        dialogRoot().findViewWithTag<RadioButton>("boss_giant_grouper").performClick()
+        button(dialogRoot(),"套用").performClick(); idle()
+        val saved=PetStore.load(context)
+        assertEquals(50,saved.size); assertEquals(1,saved.count { it.species.isBoss })
+        assertEquals(SharkSpecies.GIANT_GROUPER,saved.single { it.species.isBoss }.species)
+        assertEquals(regular,saved.take(49))
+        controller.pause().stop().destroy()
+    }
+
+    @Test fun allFourLayoutStatesRenderWithAllSeventeenSpeciesLoaded() {
         val controller=Robolectric.buildActivity(MainActivity::class.java).setup()
         val activity=controller.get(); val root=activity.window.decorView; layout(root)
         val ready=AtomicBoolean(false)
@@ -144,7 +191,7 @@ class MainActivityUiTest {
         repeat(800) {
             if(!ready.get()) { idle(); Thread.sleep(10) }
         }
-        assertTrue("All 14 species must decode, including all five ray assets",ready.get())
+        assertTrue("All 17 species must decode, including all three boss assets",ready.get())
         SharkSpecies.entries.filter { !it.isRay }.forEach { species ->
             val swim=SharkArt.clip(species,SharkMotion.SWIM)!!
             assertEquals(1,swim.frames)

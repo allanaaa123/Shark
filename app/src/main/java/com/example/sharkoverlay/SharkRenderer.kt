@@ -15,7 +15,7 @@ import android.util.Log
 import java.util.concurrent.Executors
 import org.json.JSONObject
 
-/** One process-wide immutable texture set: 14 MiB, including all sharks, orca and rays. */
+/** One process-wide immutable texture set: 17 MiB, including regular pets and all three boss designs. */
 object SharkArt {
     data class Clip(
         val bitmap: Bitmap?, val frames: Int, val durationMs: Int,
@@ -125,6 +125,7 @@ class SharkRenderer {
     private var blend = 1f
     private val add = PorterDuffXfermode(PorterDuff.Mode.ADD)
     private val mesh = FloatArray(HammerheadMotion.VERTEX_FLOATS)
+    private val bossMesh = FloatArray(BossMotion.VERTEX_FLOATS)
     private val rayMesh = FloatArray(RayMotion.VERTEX_FLOATS)
     private val rayScratch = FloatArray((RayMotion.COLUMNS+1)*2)
     private var tailPhase = 0.0
@@ -135,11 +136,16 @@ class SharkRenderer {
     private val tailPosition = FloatArray(2)
 
     fun tailOffsetX(scale: Float): Float {
+        if(currentSpecies.isBoss) { updateBossEmission(scale); return tailPosition[0] }
         if(!currentSpecies.isRay) return -53f*scale
         updateRayTail(scale)
         return tailPosition[0]
     }
 
+    private fun updateBossEmission(scale: Float) {
+        BossMotion.emission(tailPosition,110f*scale*192f/170f/2f,
+            timing.swimTimeMs/currentSpecies.swimCycleMs*2.0*Math.PI,currentSpecies,turnPose.bodyBend,turnPose.tailBend)
+    }
     private fun updateRayTail(scale: Float) {
         RayMotion.tailPosition(tailPosition,110f*scale,timing.swimTimeMs/currentSpecies.swimCycleMs*2.0*Math.PI,
             currentSpecies,turnPose.bodyBend,turnPose.tailBend)
@@ -173,6 +179,7 @@ class SharkRenderer {
     }
 
     fun tailOffsetY(scale: Float): Float {
+        if(currentSpecies.isBoss) { updateBossEmission(scale); return tailPosition[1] }
         if(currentSpecies.isRay) { updateRayTail(scale); return tailPosition[1] }
         if (currentSpecies == SharkSpecies.HAMMERHEAD) return 0f
         val cycleMs = currentSpecies.swimCycleMs
@@ -207,7 +214,12 @@ class SharkRenderer {
     private fun drawFrame(canvas: Canvas, clip: SharkArt.Clip, frame: Int, opacity: Float, species: SharkSpecies) {
         paint.alpha = (opacity * 255).toInt()
         if (clip.meshFrames.isNotEmpty()) {
-            if (species.isRay) {
+            if (species.isBoss) {
+                BossMotion.fill(bossMesh,drawingLength*192f/170f/2f,
+                    timing.swimTimeMs/species.swimCycleMs*2.0*Math.PI,species,turnPose.bodyBend,turnPose.tailBend)
+                canvas.drawBitmapMesh(clip.meshFrames[frame],BossMotion.COLUMNS,BossMotion.ROWS,bossMesh,0,null,0,paint)
+                return
+            } else if (species.isRay) {
                 // target is a generous layer bound for a ray, not its texture rectangle.
                 RayMotion.fill(rayMesh, rayScratch, drawingLength,
                     timing.swimTimeMs/species.swimCycleMs*2.0*Math.PI, species,

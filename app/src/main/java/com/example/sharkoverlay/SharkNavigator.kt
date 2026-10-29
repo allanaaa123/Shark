@@ -60,6 +60,7 @@ class SharkNavigator(
         if (width <= 0f || height <= 0f) return
         val dt = dtSeconds.coerceIn(0f, 0.08f)
         angularVelocity = 0f
+        if (species.isBoss) clearStartle(immediate=true)
         startleRemaining = max(0f,startleRemaining-dt)
         val desiredBoost = 1f + 0.75f*(startleRemaining/1.3f).coerceIn(0f,1f)
         val boostChange = (if(desiredBoost > startleBoost) 3.5f else 0.9f)*dt
@@ -87,7 +88,7 @@ class SharkNavigator(
         speedSeconds -= dt
         if (speedSeconds <= 0f) {
             // Long gentle glides interspersed with faster swimming, independent per fish.
-            speedTarget = 0.65f + random.nextFloat() * 0.8f
+            speedTarget = if(species.isBoss) .78f+random.nextFloat()*.30f else 0.65f + random.nextFloat() * 0.8f
             speedSeconds = 2f + random.nextFloat() * 4f
         }
         val desiredSpeed = speedTarget * (if (mode == Mode.TURN && !agile) 0.85f else 1f) *
@@ -103,7 +104,7 @@ class SharkNavigator(
             targetX = targetX.coerceIn(width * 0.25f, width * 0.75f)
             targetY = targetY.coerceIn(height * 0.25f, height * 0.75f)
             val difference = signedAngle(bearing(targetX, targetY) - angle)
-            val rate = if (agile) 220f else 100f // Preserve momentum, tighten hammerhead return arcs.
+            val rate = if(species.isBoss) 32f else if (agile) 220f else 100f // Preserve momentum, tighten hammerhead return arcs.
             val step = difference.coerceIn(-rate * dt, rate * dt)
             angularVelocity = if (dt > 0f) step / dt else 0f
             if (abs(difference) > 3f) {
@@ -125,7 +126,7 @@ class SharkNavigator(
             if (mode == Mode.TURN) {
                 val turnRadius = if (agile) max(r * 0.65f, v * 0.26f) else max(r * 1.4f, v * 0.9f)
                 val rate = Math.toDegrees((v / turnRadius).toDouble()).toFloat().let {
-                    if (agile) it.coerceIn(90f, 240f) else it.coerceIn(25f, 110f)
+                    if(species.isBoss) it.coerceIn(8f,28f) else if (agile) it.coerceIn(90f, 240f) else it.coerceIn(25f, 110f)
                 }
                 val step = min(turnRemaining, rate * dt)
                 angularVelocity = if (dt > 0f) turnSign * step / dt else 0f

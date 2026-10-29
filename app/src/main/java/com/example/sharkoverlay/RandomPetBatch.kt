@@ -11,8 +11,10 @@ object RandomPetBatch {
                  variation: BatchVariation = BatchVariation.FIXED, species: SharkSpecies? = null): List<SharkConfig> {
         require(existingCount in 0..SharkConfig.MAX_PETS)
         require(count in 1..remainingSlots(existingCount))
+        require(species?.isBoss != true) { "Bosses are exclusive, not batch pets" }
+        val regular=SharkSpecies.regularEntries
         return List(count) {
-            val selected = species ?: SharkSpecies.entries[random.nextInt(SharkSpecies.entries.size)]
+            val selected = species ?: regular[random.nextInt(regular.size)]
             if (variation == BatchVariation.NORMAL) {
                 SharkConfig(size = normalValue(random, 25.0, 30, 200),
                     speed = normalValue(random, 20.0, 20, 200), species = selected)

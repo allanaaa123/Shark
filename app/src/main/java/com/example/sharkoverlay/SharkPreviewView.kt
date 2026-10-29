@@ -16,6 +16,7 @@ class SharkPreviewView(context: Context) : View(context) {
     private val effects = mutableListOf<SwimEffects>()
     private val effectsPainter = SwimEffectsPainter()
     private val social = SharkSocialController()
+    private val bossAvoidance = BossAvoidance()
 
     fun applySocialMode(value: SocialMode) {
         social.applyMode(value)
@@ -23,7 +24,8 @@ class SharkPreviewView(context: Context) : View(context) {
     }
     fun startle() {
         social.reset()
-        swimmers.forEach { it.startle() }
+        bossAvoidance.reset()
+        configs.indices.filter { !configs[it].species.isBoss }.forEach { swimmers[it].startle() }
         invalidate()
     }
 
@@ -49,8 +51,8 @@ class SharkPreviewView(context: Context) : View(context) {
             configs[i].id to PreviewState(configs[i], swimmers[i], renderers[i], effects[i])
         }
         configs.clear(); swimmers.clear(); renderers.clear(); effects.clear()
-        for (item in items.take(SharkConfig.MAX_PETS)) {
-            val previous = existing[item.id]?.takeIf { it.config.species == item.species }
+        for (item in BossRules.normalize(items)) {
+            val previous = existing[item.id]?.takeIf { it.config.species == item.species || (it.config.species.isBoss && item.species.isBoss) }
             if(previous == null && (width <= 0 || height <= 0)) needsInitialPlacement = true
             configs.add(item.copy())
             swimmers.add(previous?.nav ?: SharkNavigator(
@@ -63,6 +65,7 @@ class SharkPreviewView(context: Context) : View(context) {
             effects.add(fx)
         }
         social.reset()
+        bossAvoidance.reset()
         invalidate()
     }
 
@@ -223,20 +226,28 @@ class SharkPreviewView(context: Context) : View(context) {
         if (w <= 0f || h <= 0f) return
 
         val detailFactor = SwimEffects.detailFor(configs.size)
+        bossAvoidance.beginFrame(configs.size)
+        configs.forEachIndexed { index, config ->
+            val nav=swimmers[index]
+            bossAvoidance.capture(index,nav.x,nav.y,nav.angle,110f*config.renderScale,
+                35f*config.motionSpeed*nav.speedMultiplier,config.species.isBoss,nav.isReturning || nav.isStartled)
+        }
+        bossAvoidance.update(dt)
         social.beginFrame(configs.size)
         configs.forEachIndexed { index, config ->
             val nav = swimmers[index]
-            social.capture(index, nav.x, nav.y, nav.angle, 110f * config.size / 100f,
-                35f * config.speed / 100f * nav.speedMultiplier, nav.isReturning || nav.isStartled)
+            social.capture(index, nav.x, nav.y, nav.angle, 110f * config.renderScale,
+                35f * config.motionSpeed * nav.speedMultiplier, nav.isReturning || nav.isStartled ||
+                    config.species.isBoss || bossAvoidance.isYielding(index))
         }
         social.update(dt)
         configs.forEachIndexed { index, config ->
             val nav = swimmers.getOrNull(index)
                 ?: return@forEachIndexed
 
-            val scale = config.size / 100f
+            val scale = config.renderScale
             val radius = 65f * scale
-            val speed = 35f * config.speed / 100f
+            val speed = 35f * config.motionSpeed
 
             nav.update(
                 dtSeconds = dt,
@@ -245,8 +256,8 @@ class SharkPreviewView(context: Context) : View(context) {
                 speed = speed,
                 radius = radius,
                 species = config.species,
-                socialTurnRate = social.turnRate(index),
-                socialSpeedFactor = social.speedFactor(index)
+                socialTurnRate = if(bossAvoidance.isYielding(index)) bossAvoidance.turnRate(index) else social.turnRate(index),
+                socialSpeedFactor = if(bossAvoidance.isYielding(index)) bossAvoidance.speedFactor(index) else social.speedFactor(index)
             )
 
             renderers[index].update(dt, config, nav)
@@ -258,7 +269,7 @@ class SharkPreviewView(context: Context) : View(context) {
         for (effect in effects) effectsPainter.draw(canvas, effect)
         configs.forEachIndexed { index, config ->
             val nav = swimmers[index]
-            val scale = config.size / 100f
+            val scale = config.renderScale
             canvas.save()
 
             canvas.translate(

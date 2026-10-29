@@ -29,6 +29,7 @@ class MainActivity : Activity() {
     private lateinit var total: TextView
     private lateinit var creatureTotal: TextView
     private lateinit var startStop: Button
+    private lateinit var bossShortcut: Button
     private lateinit var socialShortcut: Button
     private lateinit var grid: GridLayout
     private lateinit var creatureScroll: ScrollView
@@ -172,6 +173,10 @@ class MainActivity : Activity() {
         startStop = button("啟動桌面游動",true) { toggleDesktop() }.apply { tag = "desktop_toggle" }
         content.addView(startStop,full())
         content.addView(gap(14))
+        val bossCard=card("海洋霸主","三種共用一個名額，同時最多一隻")
+        bossShortcut=button("") { showBossPicker() }.apply { tag="boss_picker" }
+        bossCard.addView(gap(8)); bossCard.addView(bossShortcut,full())
+        content.addView(bossCard); content.addView(gap(14))
         val social = card("魚群互動")
         socialShortcut = button("") { showSocialPicker() }
         social.addView(gap(8)); social.addView(socialShortcut,full())
@@ -301,7 +306,7 @@ class MainActivity : Activity() {
             card.addView(PetThumbnailView(this,pet.species),LinearLayout.LayoutParams(-1,dp(94)))
             card.addView(text((if(selecting) if(selectedCard) "✓ " else "○ " else "")+pet.species.displayName,15f,true))
             card.addView(gap(3))
-            card.addView(text("大小 ${pet.size}% · 游速 ${pet.speed}%",12f,color=OceanUi.muted))
+            card.addView(text(if(pet.species.isBoss) "唯一霸主 · 巨大慢游" else "大小 ${pet.size}% · 游速 ${pet.speed}%",12f,color=OceanUi.muted))
             val params = GridLayout.LayoutParams().apply {
                 columnSpec=GridLayout.spec(index%2,1f); rowSpec=GridLayout.spec(index/2)
                 width=0; height=-2
@@ -401,6 +406,7 @@ class MainActivity : Activity() {
         startStop.text=if(active) "■ 停止桌面游動" else "▶ 啟動桌面游動"
         val mode=SocialMode.fromId(prefs.getString(SocialMode.PREFERENCE,null))
         socialShortcut.text="${mode.label}  ›\n${mode.description}"
+        bossShortcut.text=model.boss?.let { "${it.species.displayName}  ›\n巨大身軀 · 緩慢巡游 · 其他生物避讓" } ?: "尚未加入  ›\n選擇一位海洋霸主"
         if(::creatureTotal.isInitialized && currentTab!=1) creatureTotal.text="${model.items.size} / ${SharkConfig.MAX_PETS} 隻"
     }
 
@@ -451,6 +457,49 @@ class MainActivity : Activity() {
             }.setNegativeButton("取消",null).show()
     }
 
+    private fun showBossPicker() {
+        val current=model.boss
+        var picked=current?.species
+        val content=column()
+        content.addView(text("三種共用一個名額，切換會替換目前霸主。計入 50 隻上限。",14f,color=OceanUi.muted))
+        content.addView(text("固定約 2.8 倍體型、40% 基準游速；魚群互動關閉時仍會禮讓霸主。",13f,color=OceanUi.teal))
+        val options=RadioGroup(this).apply { orientation=RadioGroup.VERTICAL; tag="boss_choices" }
+        options.addView(RadioButton(this).apply {
+            id=View.generateViewId(); text="不加入霸主"; tag="boss_none"; isChecked=current==null
+        })
+        SharkSpecies.bosses.forEach { species ->
+            options.addView(PetThumbnailView(this,species),LinearLayout.LayoutParams(-1,dp(100)))
+            val description=when(species) {
+                SharkSpecies.DUNKLEOSTEUS -> "厚重頭甲，低頻擺尾"
+                SharkSpecies.GIANT_GROUPER -> "寬頭厚嘴，胸鰭緩慢收放"
+                else -> "外套膜帶領，腕與長觸手柔和飄動"
+            }
+            options.addView(RadioButton(this).apply {
+                id=View.generateViewId(); text="${species.displayName} · $description"
+                textSize=14f; tag="boss_${species.id}"; isChecked=current?.species==species
+            })
+        }
+        options.setOnCheckedChangeListener { group,id ->
+            val tag=group.findViewById<RadioButton>(id)?.tag?.toString()
+            picked=SharkSpecies.bosses.firstOrNull { "boss_${it.id}"==tag }
+        }
+        content.addView(options)
+        val footer=row()
+        val dialog=createSheet("海洋霸主 · 三選一",content,footer)
+        footer.addView(button("取消") { dialog.dismiss() },LinearLayout.LayoutParams(0,dp(50),1f).apply { marginEnd=dp(10) })
+        footer.addView(button("套用",true) {
+            if(picked==current?.species) { dialog.dismiss(); return@button }
+            if(picked==null && current!=null) deletePets(setOf(current.id))
+            else {
+                if(!model.chooseBoss(picked)) { toast("已達 50 隻，請先保留一個名額給霸主"); return@button }
+                dataChanged()
+            }
+            dialog.dismiss()
+            toast(if(picked==null) "已移除海洋霸主" else "已選擇${picked!!.displayName}，場上維持一位霸主")
+        },LinearLayout.LayoutParams(0,dp(50),1f))
+        dialog.show(); finishSheetWindow(dialog)
+    }
+
     private fun showAddSheet() {
         val available=RandomPetBatch.remainingSlots(model.items.size)
         if(available==0) { toast("已達 ${SharkConfig.MAX_PETS} 隻上限"); return }
@@ -459,7 +508,7 @@ class MainActivity : Activity() {
         content.addView(gap(12)); content.addView(text("物種",15f,true))
         val species=Spinner(this).apply {
             adapter=ArrayAdapter(this@MainActivity,android.R.layout.simple_spinner_dropdown_item,
-                listOf("隨機物種（${SharkSpecies.entries.size} 種，可重複）")+SharkSpecies.entries.map { it.displayName })
+                listOf("隨機物種（${SharkSpecies.regularEntries.size} 種，可重複）")+SharkSpecies.regularEntries.map { it.displayName })
             tag="add_species"
         }
         content.addView(species,LinearLayout.LayoutParams(-1,dp(48)))
@@ -487,7 +536,7 @@ class MainActivity : Activity() {
             val n=quantity.text.toString().trim().toIntOrNull()
             val slots=RandomPetBatch.remainingSlots(model.items.size)
             if(n==null || n !in 1..slots) { quantity.error="請輸入 1～$slots 的整數"; return@button }
-            val picked=if(species.selectedItemPosition==0) null else SharkSpecies.entries[species.selectedItemPosition-1]
+            val picked=if(species.selectedItemPosition==0) null else SharkSpecies.regularEntries[species.selectedItemPosition-1]
             model.add(RandomPetBatch.generate(n,model.items.size,variation=variation,species=picked))
             prefs.edit().putString(BatchVariation.PREFERENCE,variation.id).apply()
             query=""; filter=PetFilter.ALL; selected.clear(); selecting=false
@@ -509,8 +558,13 @@ class MainActivity : Activity() {
     private fun showEditSheet(ids: Set<String>) {
         val pets=model.items.filter { it.id in ids }
         if(pets.isEmpty()) return
+        if(pets.size==1 && pets.first().species.isBoss) { showBossPicker(); return }
+        val editIds=pets.filter { !it.species.isBoss }.map { it.id }.toSet()
+        if(editIds.isEmpty()) { showBossPicker(); return }
+        val editable=pets.filter { it.id in editIds }
         val single=pets.size==1
         val content=column()
+        if(pets.any { it.species.isBoss }) content.addView(text("霸主維持專屬體型與慢速；滑桿只調整一般生物。",13f,color=OceanUi.teal))
         if(single) content.addView(PetThumbnailView(this,pets.first().species),LinearLayout.LayoutParams(-1,dp(120)))
         else content.addView(text("拖曳哪一項，就只統一調整該項；其他設定維持原值。",13f,color=OceanUi.muted))
         fun slider(title: String, minimum: Int, maximum: Int, values: List<Int>, edit: (Int)->Unit) {
@@ -531,8 +585,8 @@ class MainActivity : Activity() {
             })
             content.addView(bar,full()); content.addView(text("$minimum–$maximum%",12f,color=OceanUi.muted))
         }
-        slider("大小",30,200,pets.map { it.size }) { model.update(ids,size=it) }
-        slider("游速",20,200,pets.map { it.speed }) { model.update(ids,speed=it) }
+        slider("大小",30,200,editable.map { it.size }) { model.update(editIds,size=it) }
+        slider("游速",20,200,editable.map { it.speed }) { model.update(editIds,speed=it) }
         content.addView(gap(14)); content.addView(text("調整後立即套用",13f,color=OceanUi.muted))
         val footer=row()
         val title=if(single) "${pets.first().species.displayName} ${model.items.indexOfFirst { it.id==pets.first().id }+1}" else "調整 ${pets.size} 隻生物"
@@ -572,6 +626,9 @@ class MainActivity : Activity() {
     private fun undoDeletion() {
         if(removed.size>RandomPetBatch.remainingSlots(model.items.size)) {
             toast("需保留 ${removed.size} 個名額才能全部復原"); return
+        }
+        if(!model.canRestore(removed)) {
+            toast("海洋霸主只能有一隻；請先移除目前霸主再復原"); return
         }
         val n=model.restore(removed)
         removed=emptyList(); undoBar.visibility=View.GONE; main.removeCallbacks(expireUndo)

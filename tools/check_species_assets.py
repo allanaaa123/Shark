@@ -6,7 +6,7 @@ from PIL import Image
 
 root = Path(__file__).resolve().parents[1] / 'app/src/main/assets/shark'
 expected = {'hammerhead', 'whale_shark', 'orca', 'great_white', 'tiger',
-            'shortfin_mako', 'thresher', 'zebra', 'oceanic_whitetip', 'blue_spotted_ray', 'golden_ray', 'eagle_ray', 'silver_ray', 'manta_ray'}
+            'shortfin_mako', 'thresher', 'zebra', 'oceanic_whitetip', 'blue_spotted_ray', 'golden_ray', 'eagle_ray', 'silver_ray', 'manta_ray', 'dunkleosteus', 'giant_grouper', 'giant_squid'}
 selected = set(sys.argv[1:]) if len(sys.argv) > 1 else expected
 assert selected <= expected
 total = 0

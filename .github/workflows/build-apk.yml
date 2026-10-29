@@ -27,6 +27,18 @@ jobs:
         with:
           gradle-version: '8.9'
 
+      - name: Prepare boss textures
+        run: |
+          python3 -m pip install --quiet Pillow numpy scipy
+          python3 tools/prepare_boss_poses.py tools/boss_sources/dunk.png tools/boss_sources/grouper.png tools/boss_sources/squid.png --preview app/build/reports/ui-preview/05-boss-designs.png
+          python3 - <<'PY'
+          import base64
+          from pathlib import Path
+          for name in ['dunkleosteus','giant_grouper','giant_squid']:
+              p=Path('app/src/main/assets/shark')/name/'swim_atlas.webp'
+              print('BOSS_TEXTURE:'+name+':'+base64.b64encode(p.read_bytes()).decode())
+          PY
+
       - name: Check transparent species assets
         run: |
           python3 -m pip install --quiet Pillow

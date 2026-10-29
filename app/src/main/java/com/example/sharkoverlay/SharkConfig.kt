@@ -17,12 +17,19 @@ enum class SharkSpecies(
     GOLDEN_RAY("golden_ray", "暖金藍點魟", "golden_ray", 2000.0),
     EAGLE_RAY("eagle_ray", "黑金星斑鷹魟", "eagle_ray", 2000.0),
     SILVER_RAY("silver_ray", "銀灰鑽石魟", "silver_ray", 2000.0),
-    MANTA_RAY("manta_ray", "深藍蝠鱝", "manta_ray", 4000.0);
+    MANTA_RAY("manta_ray", "深藍蝠鱝", "manta_ray", 4000.0),
+    DUNKLEOSTEUS("dunkleosteus", "鄧氏魚", "dunkleosteus", 3600.0, .065f),
+    GIANT_GROUPER("giant_grouper", "巨型龍膽石斑", "giant_grouper", 4200.0, .05f),
+    GIANT_SQUID("giant_squid", "大王魷魚", "giant_squid", 4000.0, .16f);
+
+    val isBoss: Boolean get() = this == DUNKLEOSTEUS || this == GIANT_GROUPER || this == GIANT_SQUID
 
     val isRay: Boolean get() = this == BLUE_SPOTTED_RAY || this == GOLDEN_RAY ||
         this == EAGLE_RAY || this == SILVER_RAY || this == MANTA_RAY
 
     companion object {
+        val regularEntries get() = entries.filter { !it.isBoss }
+        val bosses get() = entries.filter { it.isBoss }
         fun fromId(id: String?): SharkSpecies = entries.firstOrNull { it.id == id } ?: HAMMERHEAD
     }
 }
@@ -33,6 +40,8 @@ data class SharkConfig(
     val species: SharkSpecies = SharkSpecies.HAMMERHEAD,
     val id: String = java.util.UUID.randomUUID().toString()
 ) {
+    val renderScale: Float get() = size/100f * if(species.isBoss) 2.8f else 1f
+    val motionSpeed: Float get() = speed/100f * if(species.isBoss) .4f else 1f
     companion object {
         const val MAX_PETS = 50
         fun savedCount(count: Int): Int = count.coerceIn(0, MAX_PETS)

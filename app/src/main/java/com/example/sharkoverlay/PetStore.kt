@@ -26,13 +26,14 @@ object PetStore {
                 result.add(config)
             }
         } catch (_: Exception) { }
-        if (migrated) save(context, result)
-        return result
+        val normalized=BossRules.normalize(result)
+        if (migrated || normalized != result) save(context, normalized)
+        return normalized
     }
 
     fun save(context: Context, pets: List<SharkConfig>) {
         val array = JSONArray()
-        pets.take(SharkConfig.MAX_PETS).forEach {
+        BossRules.normalize(pets).forEach {
             array.put(JSONObject().put("id", it.id).put("size", it.size)
                 .put("speed", it.speed).put("species", it.species.id))
         }

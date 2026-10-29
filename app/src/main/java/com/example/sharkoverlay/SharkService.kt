@@ -19,12 +19,14 @@ class SharkService : Service() {
     private val choreographer by lazy { Choreographer.getInstance() }
     private val random = Random.Default
     private val social = SharkSocialController()
+    private val bossAvoidance = BossAvoidance()
     private var shakeEnabled = false
     private val shakeSensor by lazy {
         ShakeSensor(this) {
             if (running && shakeEnabled && getSystemService(PowerManager::class.java).isInteractive) {
                 social.reset()
-                sharks.forEach { it.navigator.startle() }
+        bossAvoidance.reset()
+                sharks.filter { !it.config.species.isBoss }.forEach { it.navigator.startle() }
             }
         }
     }
@@ -102,11 +104,20 @@ class SharkService : Service() {
             val screenH = view.height.takeIf { it > 0 }?.toFloat() ?: metrics.heightPixels.toFloat()
 
             val detailFactor = SwimEffects.detailFor(sharks.size)
+            bossAvoidance.beginFrame(sharks.size)
+            sharks.forEachIndexed { index, shark ->
+                val nav=shark.navigator
+                bossAvoidance.capture(index,nav.x,nav.y,nav.angle,110f*shark.scale,
+                    65f*metrics.density*shark.config.motionSpeed*nav.speedMultiplier,
+                    shark.config.species.isBoss,nav.isReturning || nav.isStartled)
+            }
+            bossAvoidance.update(dt)
             social.beginFrame(sharks.size)
             sharks.forEachIndexed { index, shark ->
                 val nav = shark.navigator
                 social.capture(index, nav.x, nav.y, nav.angle, 110f * shark.scale,
-                    65f * metrics.density * shark.config.speed / 100f * nav.speedMultiplier, nav.isReturning || nav.isStartled)
+                    65f * metrics.density * shark.config.motionSpeed * nav.speedMultiplier, nav.isReturning || nav.isStartled ||
+                        shark.config.species.isBoss || bossAvoidance.isYielding(index))
             }
             social.update(dt)
             sharks.forEachIndexed { index, shark ->
@@ -115,7 +126,7 @@ class SharkService : Service() {
 
                 val speed =
                     65f * metrics.density *
-                    config.speed / 100f
+                    config.motionSpeed
 
                 val radius = 64.8f * shark.scale
 
@@ -126,8 +137,8 @@ class SharkService : Service() {
                     speed = speed,
                     radius = radius,
                     species = config.species,
-                    socialTurnRate = social.turnRate(index),
-                    socialSpeedFactor = social.speedFactor(index)
+                    socialTurnRate = if(bossAvoidance.isYielding(index)) bossAvoidance.turnRate(index) else social.turnRate(index),
+                    socialSpeedFactor = if(bossAvoidance.isYielding(index)) bossAvoidance.speedFactor(index) else social.speedFactor(index)
                 )
 
                 shark.renderer.update(dt, config, nav)
@@ -266,9 +277,9 @@ class SharkService : Service() {
         val existing = sharks.associateBy { it.config.id }
         val metrics = resources.displayMetrics
         val next = configs.map { config ->
-            val scale = config.size / 100f * metrics.density
+            val scale = config.renderScale * metrics.density
             val old = existing[config.id]
-            if (old != null && old.config.species == config.species) {
+            if (old != null && (old.config.species == config.species || (old.config.species.isBoss && config.species.isBoss))) {
                 if (old.config.size != config.size) old.effects.clear()
                 old.config = config; old.scale = scale
                 old.effects.applyStrength(strength)
@@ -286,6 +297,7 @@ class SharkService : Service() {
         }
         sharks.clear(); sharks.addAll(next)
         social.reset()
+        bossAvoidance.reset()
         if (running && sharks.isEmpty()) stopSelf()
         updateShakeListening()
     }
@@ -316,6 +328,7 @@ class SharkService : Service() {
 
         sharks.clear()
         social.reset()
+        bossAvoidance.reset()
     }
 
     override fun onDestroy() {
